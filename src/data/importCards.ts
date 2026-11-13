@@ -25,6 +25,10 @@ export async function importCardFile(text: string): Promise<ImportResult> {
     addedAt: now.toISOString(),
     position: firstPosition + index,
     scheduling: newSchedulingState(card.id, now),
+    paused: false,
+    leech: false,
+    flag: null,
+    editedAt: null,
   }));
   await addCards(newCards);
 

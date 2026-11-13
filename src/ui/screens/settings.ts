@@ -1,9 +1,10 @@
-/** Settings: how many new cards per day, plus version information. */
+/** Settings: new cards per day, sounds on or off, plus version information. */
 import { DESIRED_RETENTION, FSRS_VERSION } from '../../config';
 import { getSettings, updateSettings } from '../../data/db';
 import { checkForUpdate, onUpdateReady } from '../../pwa';
 import type { Cleanup } from '../app';
 import { h, setChildren } from '../dom';
+import { playSound, setSoundsEnabled } from '../sound';
 import { updateBanner } from '../updateBanner';
 
 const MAX_NEW_CARDS = 999;
@@ -32,6 +33,16 @@ export async function renderSettings(root: HTMLElement): Promise<Cleanup> {
   }
   input.addEventListener('change', () => void setNewCardsPerDay(input.valueAsNumber));
   const step = (amount: number) => () => void setNewCardsPerDay((input.valueAsNumber || 0) + amount);
+
+  // ----- Sounds -----
+
+  const soundSwitch = h('input', { id: 'sounds', class: 'switch', type: 'checkbox', role: 'switch' });
+  soundSwitch.checked = settings.soundsOn;
+  soundSwitch.addEventListener('change', async () => {
+    setSoundsEnabled(soundSwitch.checked);
+    playSound('good'); // a little preview when switching on (silent when switching off)
+    await updateSettings({ soundsOn: soundSwitch.checked });
+  });
 
   // ----- Updates -----
 
@@ -70,6 +81,16 @@ export async function renderSettings(root: HTMLElement): Promise<Cleanup> {
         input,
         h('button', { class: 'button stepper-button', 'aria-label': 'One more', onclick: step(1) }, '+'),
         savedNote,
+      ),
+    ),
+    h(
+      'section',
+      { class: 'panel' },
+      h('div', { class: 'switch-row' }, h('label', { class: 'setting-title', for: 'sounds' }, 'Sounds'), soundSwitch),
+      h(
+        'p',
+        null,
+        'Short sounds when you rate a card and when you finish for the day. On an iPhone they follow the ring/silent switch.',
       ),
     ),
     h(

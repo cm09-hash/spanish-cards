@@ -24,6 +24,25 @@ export const DAY_START_HOUR = 4;
  */
 export const LEARN_AHEAD_MINUTES = 20;
 
+/**
+ * A card that has been forgotten this many times (rated "Again" after it had
+ * been learned) is marked as a "leech" and flagged for Claude to rewrite.
+ */
+export const LEECH_THRESHOLD = 6;
+
+/** Length of a "Quick 5" session, in minutes. */
+export const QUICK_SESSION_MINUTES = 5;
+
+/** Home shows a reminder when the last backup is older than this many days. */
+export const BACKUP_REMINDER_DAYS = 7;
+
 /** Written into backup files so the app can recognise its own backups. */
 export const APP_ID = 'spanish-cards';
-export const BACKUP_FORMAT_VERSION = 1;
+
+/**
+ * The version of the backup file layout that this app writes.
+ * Older versions can still be restored (see src/data/backupFile.ts).
+ *   1 = the first version
+ *   2 = cards gained "paused", "leech", "flag" and "editedAt"; settings gained "soundsOn"
+ */
+export const BACKUP_FORMAT_VERSION = 2;

@@ -92,6 +92,11 @@ ul {
   padding-left: 1.2em;
 }
 
+/* Makes the "hidden" attribute win over the display rules further down. */
+[hidden] {
+  display: none !important;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -142,7 +147,7 @@ ul {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   padding: 6px max(8px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 6px)
     max(8px, env(safe-area-inset-left));
   background: var(--surface);
@@ -200,13 +205,18 @@ ul {
   user-select: none;
   -webkit-user-select: none;
   transition:
-    transform 80ms ease,
+    transform 90ms ease,
+    filter 90ms ease,
     opacity 120ms ease;
 }
 
 .button:active {
-  transform: scale(0.98);
-  opacity: 0.85;
+  transform: scale(0.95);
+  filter: brightness(0.92);
+}
+
+.tab:active .icon {
+  transform: scale(0.85);
 }
 
 .button:focus-visible,
@@ -419,12 +429,12 @@ details.panel .footnote {
 
 /* While reviewing, the tab bar is hidden and the screen is exactly as tall as the
    phone's display: the card scrolls if it's long, the buttons stay put at the bottom. */
-#app.is-reviewing {
+#app.is-full-height {
   height: 100vh;
   height: 100dvh;
 }
 
-#app.is-reviewing .tabbar {
+#app.is-full-height .tabbar {
   display: none;
 }
 
@@ -439,7 +449,76 @@ details.panel .footnote {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-left: -14px;
+}
+
+.review-header-side {
+  display: flex;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.review-header-side:first-child {
+  gap: 0;
+}
+
+/* The Quick 5 countdown */
+.review-timer {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.review-timer.is-up {
+  background: color-mix(in srgb, var(--hard) 16%, var(--surface));
+  color: var(--hard);
+}
+
+/* How far through today's cards you are */
+.progress {
+  flex-shrink: 0;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 450ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* A short notice above the buttons (used when a card becomes a leech). Tap to dismiss. */
+.toast {
+  flex-shrink: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-left: 4px solid var(--hard);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--hard) 13%, var(--surface));
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  animation: rise-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .review-counts {
@@ -567,6 +646,7 @@ details.panel .footnote {
 }
 
 .button.rating {
+  animation: rise-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
   flex-direction: column;
   gap: 2px;
   min-height: 72px;
@@ -664,4 +744,392 @@ details.panel .footnote {
   color: var(--good);
   font-size: 14px;
   font-weight: 600;
+}
+
+.button.rating:nth-child(2) {
+  animation-delay: 35ms;
+}
+
+.button.rating:nth-child(3) {
+  animation-delay: 70ms;
+}
+
+.button.rating:nth-child(4) {
+  animation-delay: 105ms;
+}
+
+.button.rating:active {
+  transform: scale(0.92);
+}
+
+/* ---------- Home extras ---------- */
+
+.button.two-line {
+  flex-direction: column;
+  gap: 0;
+}
+
+.button-detail {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.banner.is-gentle {
+  background: color-mix(in srgb, var(--hard) 12%, var(--surface));
+}
+
+/* ---------- Text boxes, drop-downs and switches ---------- */
+
+.field {
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit; /* 17px: anything under 16px makes iPhones zoom in when the box is tapped */
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.field:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+textarea.field {
+  display: block;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+select.field {
+  padding: 8px 28px 8px 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1.5 5 5 5-5' fill='none' stroke='%238a8680' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 11px;
+  font-size: 16px;
+  text-overflow: ellipsis;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field > span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--border);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: background 180ms ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 28%);
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.switch:checked {
+  background: var(--accent);
+}
+
+.switch:checked::after {
+  transform: translateX(20px);
+}
+
+.switch:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+/* ---------- Cards (the browser) ---------- */
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.footnote.is-left,
+.list-summary {
+  text-align: left;
+}
+
+.list-summary {
+  margin: -6px 2px;
+}
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: transform 90ms ease;
+}
+
+.card-row:active {
+  transform: scale(0.98);
+}
+
+.card-row-front,
+.card-row-back {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+
+.card-row-front {
+  font-family: var(--font-card);
+  font-size: 19px;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.card-row-back {
+  color: var(--muted);
+  font-size: 15px;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.page-cards > .badges {
+  justify-content: center;
+}
+
+.badge {
+  --tone: var(--muted);
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 14%, var(--surface));
+  color: var(--tone);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.badge.is-new {
+  --tone: var(--easy);
+}
+
+.badge.is-learning {
+  --tone: var(--hard);
+}
+
+.badge.is-review {
+  --tone: var(--good);
+}
+
+.badge.is-leech {
+  --tone: var(--again);
+}
+
+.badge.is-flagged {
+  --tone: var(--accent);
+}
+
+.badge.is-paused {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--muted);
+}
+
+/* One card's page */
+
+.back-link {
+  align-self: flex-start;
+  margin: -8px 0 -8px -14px;
+}
+
+.page-cards .card {
+  margin: 0;
+}
+
+.message.is-flag {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.button-grid .button {
+  padding: 10px 8px;
+}
+
+.button.danger-text {
+  color: var(--again);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  width: 100%;
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-size: 15px;
+}
+
+.history-rating {
+  color: var(--rating);
+  font-weight: 650;
+}
+
+.history-next {
+  min-width: 5.5em;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Movement ---------- */
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+.page {
+  animation: page-in 220ms ease-out;
+}
+
+.stat-value {
+  animation: pop-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.stat:nth-child(2) .stat-value {
+  animation-delay: 70ms;
+}
+
+.review-actions > .button {
+  animation: rise-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.finished h1 {
+  animation: pop-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms backwards;
+}
+
+.banner,
+.message {
+  animation: rise-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.icon {
+  transition: transform 140ms ease;
+}
+
+/* iPhone: Settings → Accessibility → Motion → Reduce Motion. Everything simply appears, with no movement.
+   (The card flip, slides and confetti are switched off in src/ui/motion.ts for the same setting.) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

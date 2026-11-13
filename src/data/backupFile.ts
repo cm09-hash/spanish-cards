@@ -4,9 +4,13 @@
  * history and the settings. See README.md for the format.
  */
 import { APP_ID, BACKUP_FORMAT_VERSION, DESIRED_RETENTION, FSRS_VERSION } from '../config';
-import type { ReviewRecord, SchedulingState, Settings, StoredCard } from '../types';
+import type { CardFlag, ReviewRecord, SchedulingState, Settings, StoredCard } from '../types';
 import { checkCard, FileProblem, isObject, parseJson } from './cardFile';
+import { addMissingCardFields } from './cardUpgrade';
 import type { EverythingSaved } from './db';
+
+/** Backups written by any of these versions of the file layout can be restored. */
+const READABLE_FORMAT_VERSIONS = [1, 2];
 
 export interface BackupFile {
   app: typeof APP_ID;
@@ -14,7 +18,7 @@ export interface BackupFile {
   exportedAt: string;
   /** For your information when analysing the data; not needed to restore. */
   scheduler: { algorithm: string; desiredRetention: number };
-  settings: { newCardsPerDay: number };
+  settings: { newCardsPerDay: number; soundsOn: boolean };
   cards: StoredCard[];
   reviews: ReviewRecord[];
 }
@@ -25,7 +29,7 @@ export function buildBackup(data: EverythingSaved, now: Date): BackupFile {
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt: now.toISOString(),
     scheduler: { algorithm: FSRS_VERSION, desiredRetention: DESIRED_RETENTION },
-    settings: { newCardsPerDay: data.settings.newCardsPerDay },
+    settings: { newCardsPerDay: data.settings.newCardsPerDay, soundsOn: data.settings.soundsOn },
     cards: data.cards,
     // Written with the id first, simply because that is easier to read.
     reviews: data.reviews.map(({ id, ...rest }) => ({ id, ...rest })),
@@ -46,9 +50,10 @@ export interface ParsedBackup extends EverythingSaved {
 /**
  * Checks a backup file from top to bottom before anything is restored,
  * so a damaged or wrong file can never wipe out good data.
+ * Backups from older versions of the app are brought up to date on the way in.
  * Throws a FileProblem with a message fit to show the user.
  */
-export function parseBackup(text: string, defaults: Settings): ParsedBackup {
+export function parseBackup(text: string, defaults: Settings, now = new Date()): ParsedBackup {
   const data = parseJson(text);
 
   if (!isObject(data) || data.app !== APP_ID || !Array.isArray(data.cards) || !Array.isArray(data.reviews)) {
@@ -56,8 +61,10 @@ export function parseBackup(text: string, defaults: Settings): ParsedBackup {
       "This isn't a Spanish Cards backup file. (To add new cards from a file, use the Import screen instead.)",
     );
   }
-  if (data.formatVersion !== BACKUP_FORMAT_VERSION) {
-    throw new FileProblem('This backup was made by a different version of the app and can’t be read by this one.');
+  if (!READABLE_FORMAT_VERSIONS.includes(data.formatVersion as number)) {
+    throw new FileProblem(
+      'This backup was made by a newer version of the app and can’t be read by this one. Update the app (Settings → Check for updates) and try again.',
+    );
   }
 
   const cards = data.cards.map((raw, index) => {
@@ -65,12 +72,21 @@ export function parseBackup(text: string, defaults: Settings): ParsedBackup {
     const content = checkCard(raw);
     if (typeof content === 'string') throw new FileProblem(`${where}: ${content}`);
     const saved = raw as Record<string, unknown>;
-    const card: StoredCard = {
-      ...content,
-      addedAt: checkDate(saved.addedAt, where),
-      position: checkNumber(saved.position, where),
-      scheduling: checkScheduling(saved.scheduling, where),
-    };
+    // Fields added in format version 2 may be absent (version 1 backups don't have them);
+    // addMissingCardFields then fills them in exactly as the database upgrade does.
+    const card = addMissingCardFields(
+      {
+        ...content,
+        addedAt: checkDate(saved.addedAt, where),
+        position: checkNumber(saved.position, where),
+        scheduling: checkScheduling(saved.scheduling, where),
+        paused: checkOptional(saved.paused, 'boolean', where),
+        leech: checkOptional(saved.leech, 'boolean', where),
+        flag: saved.flag == null ? (saved.flag as null | undefined) : checkFlag(saved.flag, where),
+        editedAt: saved.editedAt == null ? (saved.editedAt as null | undefined) : checkDate(saved.editedAt, where),
+      },
+      now,
+    );
     if (card.scheduling.cardId !== card.id) throw new FileProblem(`${where} is damaged.`);
     return card;
   });
@@ -102,6 +118,7 @@ export function parseBackup(text: string, defaults: Settings): ParsedBackup {
   const perDay = savedSettings.newCardsPerDay;
   const settings: Settings = {
     newCardsPerDay: typeof perDay === 'number' && perDay >= 0 ? Math.floor(perDay) : defaults.newCardsPerDay,
+    soundsOn: typeof savedSettings.soundsOn === 'boolean' ? savedSettings.soundsOn : defaults.soundsOn,
     lastBackupAt: typeof data.exportedAt === 'string' ? data.exportedAt : null,
   };
 
@@ -129,6 +146,20 @@ function checkScheduling(raw: unknown, where: string): SchedulingState {
     reps: checkNumber(raw.reps, where),
     lapses: checkNumber(raw.lapses, where),
   };
+}
+
+function checkFlag(raw: unknown, where: string): CardFlag {
+  if (!isObject(raw) || typeof raw.reason !== 'string' || (raw.by !== 'you' && raw.by !== 'leech')) {
+    throw new FileProblem(`${where} is damaged.`);
+  }
+  return { reason: raw.reason, flaggedAt: checkDate(raw.flaggedAt, where), by: raw.by };
+}
+
+/** For fields that older backups don't have: missing is fine, but the wrong kind of value is not. */
+function checkOptional(value: unknown, kind: 'boolean', where: string): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== kind) throw new FileProblem(`${where} is damaged.`);
+  return value as boolean;
 }
 
 function checkNumber(value: unknown, where: string): number {

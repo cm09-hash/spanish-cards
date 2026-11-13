@@ -1,7 +1,15 @@
 import type { SchedulingState, StoredCard } from '../src/types';
 
-/** Builds a saved card for tests. Pass only the scheduling details that matter for the test. */
-export function makeCard(id: string, scheduling: Partial<SchedulingState> = {}, position = 1): StoredCard {
+/**
+ * Builds a saved card for tests. Pass only the scheduling details that matter for the test;
+ * `other` can override anything else (for example { paused: true }).
+ */
+export function makeCard(
+  id: string,
+  scheduling: Partial<SchedulingState> = {},
+  position = 1,
+  other: Partial<StoredCard> = {},
+): StoredCard {
   return {
     id,
     front: `front of ${id}`,
@@ -10,6 +18,10 @@ export function makeCard(id: string, scheduling: Partial<SchedulingState> = {}, 
     tags: [],
     addedAt: '2026-01-01T00:00:00.000Z',
     position,
+    paused: false,
+    leech: false,
+    flag: null,
+    editedAt: null,
     scheduling: {
       cardId: id,
       state: 0,
@@ -25,5 +37,6 @@ export function makeCard(id: string, scheduling: Partial<SchedulingState> = {}, 
       lapses: 0,
       ...scheduling,
     },
+    ...other,
   };
 }
