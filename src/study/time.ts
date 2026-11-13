@@ -56,3 +56,14 @@ export function formatClockTime(when: Date, now: Date): string {
 export function formatDate(when: Date): string {
   return when.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+/** "13 Nov 2026, 9:30 am" */
+export function formatDateTime(when: Date): string {
+  return when.toLocaleString([], {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}

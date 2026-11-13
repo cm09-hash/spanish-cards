@@ -43,13 +43,34 @@ export interface SchedulingState {
   lapses: number;
 }
 
-/** A card as saved on the device: its content plus its schedule. */
-export interface StoredCard extends CardContent {
+/** A note that a card needs Claude's attention (for example, to be rewritten). */
+export interface CardFlag {
+  /** Why it was flagged. May be empty. */
+  reason: string;
+  flaggedAt: string;
+  /** 'you' = you flagged it by hand. 'leech' = the app flagged it because it keeps being forgotten. */
+  by: 'you' | 'leech';
+}
+
+/** The extra marks a card can carry besides its content and schedule. */
+export interface CardMarks {
+  /** Paused cards never appear in study sessions. */
+  paused: boolean;
+  /** True once the card has been forgotten LEECH_THRESHOLD times. */
+  leech: boolean;
+  /** null = not flagged. */
+  flag: CardFlag | null;
+}
+
+/** A card as saved on the device: its content, its schedule and its marks. */
+export interface StoredCard extends CardContent, CardMarks {
   /** When the card was imported. */
   addedAt: string;
   /** Import order. New cards are introduced lowest number first. */
   position: number;
   scheduling: SchedulingState;
+  /** When the card's text was last edited in the app (null = never). */
+  editedAt: string | null;
 }
 
 /** One entry in the review history. Every single answer is saved as one of these. */
@@ -70,6 +91,7 @@ export interface ReviewRecord {
 
 export interface Settings {
   newCardsPerDay: number;
+  soundsOn: boolean;
   /** When a backup file was last saved (null = never). */
   lastBackupAt: string | null;
 }

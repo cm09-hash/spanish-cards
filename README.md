@@ -20,11 +20,12 @@ spaced repetition, so you review things just before you would forget them.
 
 | Screen       | What it's for                                                                                         |
 | ------------ | ----------------------------------------------------------------------------------------------------- |
-| **Home**     | Shows how many cards are due today and how many new cards are left today. Tap **Study** to start.     |
+| **Home**     | Shows how many cards are due today and how many new cards are left today. Tap **Study** to start, or **Quick 5** on a busy day. |
 | **Review**   | Shows a card. Think of the answer, tap **Show answer**, then say how it went (see below).             |
+| **Cards**    | Every card you have, with search and filters. Tap a card to see, edit, pause, flag or delete it.      |
 | **Import**   | Adds cards from a file. Cards you already have are skipped.                                           |
 | **Backup**   | Saves everything to one file, or restores everything from one.                                        |
-| **Settings** | How many new cards you get per day (15 to begin with).                                                |
+| **Settings** | How many new cards you get per day (15 to begin with), and sounds on or off.                          |
 
 ### The four answer buttons
 
@@ -40,6 +41,53 @@ Each button shows when the card will come back if you press it (`10m` = 10 minut
 
 For a card you have never seen and don't know yet, press **Again**. It comes back a minute later, and from
 there it settles into a rhythm. Be honest rather than generous: the scheduling works best that way.
+
+### During a session
+
+- **Progress bar.** The bar at the top shows how far through today's cards you are. A card only moves the
+  bar once it is finished for the day, so a card you keep getting wrong doesn't count until it sticks.
+- **Undo.** After you rate a card, an **Undo** button appears at the top. It takes back your last answer:
+  the card goes back exactly as it was, and that answer is removed from the history. Tap it again to go
+  back further. Undo covers the answers given since you opened the session; it is forgotten when you leave it.
+- **Finishing.** When nothing at all is left for today you get a short burst of confetti and a chime.
+- **Leeches.** A card you have forgotten 6 times is called a _leech_. It usually needs rewriting, not more
+  repetition, so the app tells you the moment it happens and flags the card for Claude. It is not paused:
+  it stays in your reviews. (The number 6 is `LEECH_THRESHOLD` in `src/config.ts`.)
+
+### Quick 5
+
+For days when you have no time. **Quick 5** on the Home screen starts a five-minute session of **due reviews
+only**, with no new cards and a small countdown at the top. When the time runs out you finish the card you
+are on, and the session ends. Reviews are what keep what you've already learned from slipping, so five
+minutes of them is far better than skipping the day.
+
+### Motion and sound
+
+- Cards flip when you reveal the answer and slide when you move on, and buttons react when pressed.
+- Sounds are short tones made by the app itself (there are no audio files, so they work offline). You can
+  switch them off under **Settings → Sounds**.
+- On an iPhone, sounds follow the **ring/silent switch**: with the phone on silent you won't hear them. They
+  mix with music or a podcast that is already playing, instead of stopping it.
+- If your iPhone has **Reduce Motion** turned on (Settings → Accessibility → Motion), the app shows no flips,
+  slides or confetti. Everything simply appears.
+
+### The Cards screen
+
+- **Search** looks in the front, back, note and tags. It ignores capital letters and accents, so typing
+  `desafio` finds _el desafío_.
+- **Filters** narrow the list by type, by tag and by status: New, Learning, Review, Paused, Flagged or Leech.
+- Tap a card to open it. You see both sides, its note and tags, how many times you have reviewed and
+  forgotten it, when it is next due, and its full review history.
+
+What you can do with a card:
+
+| Action              | What happens                                                                                              |
+| ------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Edit**            | Change the front, back, note or tags. The card keeps all of its progress and history.                     |
+| **Pause / Unpause** | A paused card never appears in study sessions and isn't counted on the Home screen, until you unpause it. |
+| **Flag for Claude** | Marks the card as needing attention, with an optional short reason such as "translation seems wrong".     |
+| **Reset progress**  | Makes the card new again, to be re-learned from scratch. Its text and review history are kept.            |
+| **Delete**          | Removes the card and its review history for good. You are asked to confirm first.                         |
 
 ### How the scheduling works
 
@@ -187,12 +235,15 @@ On your iPhone, save the file Claude gives you to the **Files** app, then open S
 Everything is stored on your phone only, so **save a backup now and then**. If the phone is lost or the
 app's data is cleared, a backup file is the only way back.
 
+- The Home screen reminds you if you have never saved a backup, or if your last one is more than 7 days old.
 - **Backup → Save backup file** creates one file, named like `spanish-cards-backup-2026-11-13.json`, holding
   all your cards, the complete review history and your settings. On an iPhone, pick **Save to Files** in the
   menu that appears (iCloud Drive is a good place).
 - **Backup → Choose a backup file** restores from such a file. It **replaces** everything on the device, and
   asks you to confirm first. The file is checked from top to bottom before anything is touched, so a damaged
   or wrong file cannot wipe out your data.
+- Backups made by older versions of the app can still be restored. Anything the old file doesn't know about
+  (for example whether a card is paused) is filled in with its starting value.
 
 ### What's inside a backup (for analysing your progress)
 
@@ -201,24 +252,32 @@ The backup is ordinary JSON, so you can hand it to Claude or open it in any data
 ```json
 {
   "app": "spanish-cards",
-  "formatVersion": 1,
+  "formatVersion": 2,
   "exportedAt": "2026-11-13T09:30:00.000Z",
   "scheduler": { "algorithm": "FSRS-7", "desiredRetention": 0.9 },
-  "settings": { "newCardsPerDay": 15 },
+  "settings": { "newCardsPerDay": 15, "soundsOn": true },
   "cards": [ … ],
   "reviews": [ … ]
 }
 ```
 
-Each entry in **`cards`** is the card as you imported it, plus:
+Each entry in **`cards`** is the card as it is now (including any edits you made in the app), plus:
 
-| Field        | Meaning                                                              |
-| ------------ | -------------------------------------------------------------------- |
-| `addedAt`    | When it was imported.                                                |
-| `position`   | Import order. New cards are introduced lowest number first.          |
-| `scheduling` | The card's current FSRS state (described below).                     |
+| Field        | Meaning                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------- |
+| `addedAt`    | When it was imported.                                                                                |
+| `position`   | Import order. New cards are introduced lowest number first.                                          |
+| `scheduling` | The card's current FSRS state (described below).                                                     |
+| `paused`     | `true` if the card is paused.                                                                        |
+| `leech`      | `true` if the card has been forgotten 6 or more times.                                               |
+| `flag`       | `null`, or `{ "reason": "…", "flaggedAt": "…", "by": "you" }`. `by` is `"leech"` when the app flagged it. |
+| `editedAt`   | When the card's text was last edited in the app (`null` if never).                                   |
 
-Each entry in **`reviews`** is one answer you gave. Every single one is kept.
+`formatVersion` says which layout the file uses. Version 1 (from the first release of the app) has no
+`paused`, `leech`, `flag` or `editedAt` on its cards and no `soundsOn` setting. The app restores both versions.
+
+Each entry in **`reviews`** is one answer you gave. Every one is kept, except answers you take back with
+Undo and the history of cards you delete.
 
 | Field        | Meaning                                                                    |
 | ------------ | -------------------------------------------------------------------------- |
@@ -301,7 +360,8 @@ You need [Node.js](https://nodejs.org) version 24 or newer.
 - [Vite](https://vite.dev) + TypeScript, with no UI framework
 - [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) for scheduling
 - [Dexie](https://dexie.org) for IndexedDB, the on-device database
-- [Vitest](https://vitest.dev) for tests
+- [Vitest](https://vitest.dev) for tests, with [fake-indexeddb](https://github.com/dumbmatter/fakeIndexedDB)
+  standing in for the phone's database while they run
 
 ### Where things live
 
@@ -309,25 +369,34 @@ You need [Node.js](https://nodejs.org) version 24 or newer.
 index.html                 The single page everything is drawn into
 src/
   main.ts                  Where the app starts
-  config.ts                Settings baked into the app (desired retention, day start, defaults)
+  config.ts                Settings baked into the app (desired retention, day start, leech threshold…)
   types.ts                 The shapes of cards, reviews and settings
   styles.css               All the styling, including dark mode
   pwa.ts                   Switches on offline support and notices new versions
   study/                   The "brain". No screens, no database
     scheduler.ts             The only file that talks to ts-fsrs
-    queue.ts                 Which cards are due, and which card comes next
+    queue.ts                 Which cards are due, which card comes next, and today's progress
+    rate.ts                  Works out what to save when a card is rated
+    leech.ts                 When a card counts as a leech
+    cardFilter.ts            Search and filters for the Cards screen
     today.ts                 Loads what Home and Review need to know about today
     cloze.ts                 Reads {{c1::…}} blanks
     time.ts                  Day boundaries and labels like "10m" or "4d"
   data/                    Saving and loading
     db.ts                    The on-device database (all reads and writes go through here)
+    cardUpgrade.ts           Brings cards saved by an older version up to date
     cardFile.ts              Checks an import file
     importCards.ts           Adds imported cards to the database
     backupFile.ts            Builds and checks backup files
+    backupReminder.ts        Decides when Home should nudge you to back up
   ui/                      Everything you see
     app.ts                   Switches between screens and draws the tab bar
-    screens/                 One file per screen: home, review, import, backup, settings
+    screens/                 One file per screen: home, review, cards, cardDetail, import, backup, settings
     cardView.ts              Draws a card (question side and answer side)
+    sound.ts                 The sound effects (Web Audio, no audio files)
+    motion.ts                Animation helper that respects Reduce Motion
+    confetti.ts              The end-of-day celebration
+    badges.ts                The small labels: New, Paused, Leech…
     dom.ts, icons.ts, updateBanner.ts   Small shared helpers
 public/                    Files copied into the app as they are
   sample-cards.json          The 10 sample cards
@@ -335,6 +404,7 @@ public/                    Files copied into the app as they are
   icons/
 scripts/                   Builds the offline service worker at the end of "npm run build"
 tests/                     Automatic checks for the logic in study/ and data/
+  fixtures/backup-v1.json    A real backup from version 1, used to prove old data still loads
 .github/workflows/deploy.yml   Tests, builds and publishes to GitHub Pages
 ```
 
@@ -348,5 +418,14 @@ A few pointers for the most likely next steps:
   `src/ui/cardView.ts`.
 - **A new setting:** add it to `Settings` in `src/types.ts` and to `DEFAULT_SETTINGS` in `src/data/db.ts`,
   then add a control in `src/ui/screens/settings.ts`.
-- **Changing what is stored:** add a `db.version(2)` block in `src/data/db.ts` rather than editing version 1,
-  and bump `BACKUP_FORMAT_VERSION` in `src/config.ts` if the backup file changes shape.
+- **A new sound:** add it to `SOUNDS` in `src/ui/sound.ts` and play it with `playSound('its-name')`.
+- **Changing what is stored:** this is the one place where a mistake could lose data, so follow the
+  pattern already there:
+  1. Never edit a `db.version(…)` block that has been released. Add the next one (`db.version(3)`) in
+     `src/data/db.ts`, with an `upgrade` step that fills in the new fields on existing cards.
+  2. Put the "fill in what's missing" logic in `src/data/cardUpgrade.ts`, so that restoring an old backup
+     does exactly the same thing as upgrading an old database.
+  3. Bump `BACKUP_FORMAT_VERSION` in `src/config.ts`, add the new number to `READABLE_FORMAT_VERSIONS` in
+     `src/data/backupFile.ts`, and keep accepting the old ones.
+  4. `tests/dbUpgrade.test.ts` and `tests/backupFile.test.ts` check that version 1 data still loads. Add
+     the same kind of check for the version you are leaving behind.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickNextCard, summarize } from '../src/study/queue';
+import { pickNextCard, summarize, todaysProgress } from '../src/study/queue';
 import { makeCard } from './helpers';
 
 // "Now" is noon, so the study day runs from 4:00 this morning to 4:00 tomorrow morning.
@@ -93,5 +93,76 @@ describe('summarize', () => {
       canStudyNow: false,
       nextReadyAt: null,
     });
+  });
+});
+
+describe('paused cards', () => {
+  const paused = { paused: true };
+  const cards = [
+    makeCard('new-paused', {}, 1, paused),
+    makeCard('review-paused', { state: 2, scheduleStatus: 'review', scheduledDays: 5, dueAt: days(-1) }, 2, paused),
+    makeCard(
+      'step-paused',
+      { state: 1, scheduleStatus: 'learning', scheduledDays: 0.01, dueAt: minutes(-5) },
+      3,
+      paused,
+    ),
+  ];
+
+  it('are never picked for study', () => {
+    expect(pickNextCard(cards, options)).toBeNull();
+    expect(pickNextCard([...cards, makeCard('active', {}, 9)], options)?.id).toBe('active');
+  });
+
+  it('are left out of the due and new counts, but still counted as cards', () => {
+    expect(summarize(cards, options)).toMatchObject({
+      totalCards: 3,
+      dueToday: 0,
+      newLeft: 0,
+      canStudyNow: false,
+      nextReadyAt: null,
+    });
+  });
+});
+
+describe('Quick 5 (reviews only)', () => {
+  const quick = { ...options, reviewsOnly: true };
+
+  it('never gives new cards', () => {
+    expect(pickNextCard([makeCard('new')], quick)).toBeNull();
+    expect(summarize([makeCard('new')], quick)).toMatchObject({ newLeft: 0, canStudyNow: false });
+  });
+
+  it('still gives due reviews and short-step cards', () => {
+    expect(pickNextCard([makeCard('new'), review('due', days(-1))], quick)?.id).toBe('due');
+    expect(pickNextCard([makeCard('new'), shortStep('ready', minutes(-1))], quick)?.id).toBe('ready');
+  });
+});
+
+describe('todaysProgress', () => {
+  it('is empty at the start of the day', () => {
+    const cards = [makeCard('n1'), makeCard('n2'), review('due', days(-1))];
+    expect(todaysProgress(cards, options, [])).toEqual({ done: 0, total: 3 });
+  });
+
+  it('counts a card as done once it is reviewed and not due again today', () => {
+    const cards = [makeCard('n1'), review('done', days(4)), review('due', days(-1))];
+    const progress = todaysProgress(cards, { ...options, newCardsDoneToday: 1 }, ['done']);
+    expect(progress).toEqual({ done: 1, total: 3 });
+  });
+
+  it('does not count a card that was reviewed but is coming back today', () => {
+    const cards = [shortStep('again-in-a-minute', minutes(1)), review('done', days(2))];
+    expect(todaysProgress(cards, options, ['again-in-a-minute', 'done'])).toEqual({ done: 1, total: 2 });
+  });
+
+  it('reaches the end when nothing is left', () => {
+    const cards = [review('a', days(2)), review('b', days(9))];
+    expect(todaysProgress(cards, options, ['a', 'b'])).toEqual({ done: 2, total: 2 });
+  });
+
+  it('leaves new cards out of the total in a reviews-only session', () => {
+    const cards = [makeCard('n1'), makeCard('n2'), review('due', days(-1)), review('done', days(3))];
+    expect(todaysProgress(cards, { ...options, reviewsOnly: true }, ['done'])).toEqual({ done: 1, total: 2 });
   });
 });

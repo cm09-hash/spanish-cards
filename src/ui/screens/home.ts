@@ -1,4 +1,7 @@
-/** Home: what's waiting today, and the big Study button. */
+/** Home: what's waiting today, and the buttons that start a study session. */
+import { QUICK_SESSION_MINUTES } from '../../config';
+import { backupReminder } from '../../data/backupReminder';
+import { countReviews } from '../../data/db';
 import { onUpdateReady } from '../../pwa';
 import { summarize } from '../../study/queue';
 import { formatClockTime } from '../../study/time';
@@ -12,8 +15,9 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
 
   async function draw(): Promise<void> {
     const now = new Date();
-    const today = await loadToday(now);
+    const [today, reviewsEver] = await Promise.all([loadToday(now), countReviews()]);
     const summary = summarize(today.cards, today.queueOptions);
+    const reviewsOnly = summarize(today.cards, { ...today.queueOptions, reviewsOnly: true });
 
     const header = h(
       'header',
@@ -22,11 +26,22 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
       h('p', { class: 'subtitle' }, '¡Hola!'),
     );
 
+    const reminder = backupReminder(today.settings.lastBackupAt, reviewsEver, now);
+    const backupBanner =
+      reminder &&
+      h(
+        'div',
+        { class: 'banner is-gentle' },
+        h('span', null, reminder),
+        h('button', { class: 'button small', onclick: () => navigate('backup') }, 'Back up'),
+      );
+
     if (summary.totalCards === 0) {
       setChildren(
         root,
         header,
         updateBanner(),
+        backupBanner,
         h(
           'section',
           { class: 'panel is-centered' },
@@ -49,6 +64,7 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
       root,
       header,
       updateBanner(),
+      backupBanner,
       h(
         'section',
         { class: 'stats' },
@@ -59,6 +75,12 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
         'button',
         { class: 'button primary big', disabled: !summary.canStudyNow, onclick: () => navigate('review') },
         'Study',
+      ),
+      h(
+        'button',
+        { class: 'button big two-line', disabled: !reviewsOnly.canStudyNow, onclick: () => navigate('quick') },
+        h('span', null, `Quick ${QUICK_SESSION_MINUTES}`),
+        h('span', { class: 'button-detail' }, `${QUICK_SESSION_MINUTES} minutes · due reviews only`),
       ),
       status && h('p', { class: 'status' }, status),
       h(
