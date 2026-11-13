@@ -1,0 +1,84 @@
+{
+  "cards": [
+    {
+      "id": "sample-vocab-aprovechar",
+      "type": "vocab",
+      "front": "aprovechar",
+      "back": "to make the most of; to take advantage of",
+      "tags": ["sample", "verbs"],
+      "note": "Hay que aprovechar el buen tiempo. — We should make the most of the good weather."
+    },
+    {
+      "id": "sample-vocab-desafio",
+      "type": "vocab",
+      "front": "el desafío",
+      "back": "the challenge",
+      "tags": ["sample", "nouns"],
+      "note": "Aprender un idioma es un desafío. — Learning a language is a challenge."
+    },
+    {
+      "id": "sample-conj-poner-preterito-ellos",
+      "type": "conjugation",
+      "front": "poner → pretérito, ellos",
+      "back": "pusieron",
+      "tags": ["sample", "pretérito", "irregular"],
+      "note": "Irregular stem pus-: puse, pusiste, puso, pusimos, pusisteis, pusieron."
+    },
+    {
+      "id": "sample-conj-hacer-subjuntivo-yo",
+      "type": "conjugation",
+      "front": "hacer → presente de subjuntivo, yo",
+      "back": "haga",
+      "tags": ["sample", "subjuntivo", "irregular"],
+      "note": "Quieren que yo haga la cena. — They want me to make dinner."
+    },
+    {
+      "id": "sample-grammar-por-para-deadline",
+      "type": "grammar",
+      "front": "¿Por o para? Which one do you use for a deadline, and which for how long something lasted?",
+      "back": "para = deadline\npor = duration",
+      "tags": ["sample", "por-para"],
+      "note": "Lo necesito para el lunes. — I need it by Monday.\nViví en Chile por dos años. — I lived in Chile for two years."
+    },
+    {
+      "id": "sample-phrase-echar-de-menos",
+      "type": "phrase",
+      "front": "echar de menos",
+      "back": "to miss (someone or something)",
+      "tags": ["sample", "idioms"],
+      "note": "Echo de menos a mi familia. — I miss my family."
+    },
+    {
+      "id": "sample-phrase-me-da-igual",
+      "type": "phrase",
+      "front": "Me da igual.",
+      "back": "I don't mind. / It's all the same to me.",
+      "tags": ["sample", "everyday"],
+      "note": "— ¿Pizza o pasta? — Me da igual."
+    },
+    {
+      "id": "sample-listening-echar-una-mano",
+      "type": "listening",
+      "front": "¿Me puedes echar una mano con esto?",
+      "back": "Can you give me a hand with this?",
+      "tags": ["sample", "everyday"],
+      "note": "echar una mano = to lend a hand"
+    },
+    {
+      "id": "sample-cloze-ir-preterito",
+      "type": "cloze",
+      "front": "Ayer {{c1::fui::ir}} al mercado y compré fruta.",
+      "back": "Yesterday I went to the market and bought fruit.",
+      "tags": ["sample", "pretérito"],
+      "note": "Pretérito of ir: fui, fuiste, fue, fuimos, fuisteis, fueron."
+    },
+    {
+      "id": "sample-cloze-si-tuviera",
+      "type": "cloze",
+      "front": "Si {{c1::tuviera::tener}} más tiempo, {{c2::viajaría::viajar}} por toda Sudamérica.",
+      "back": "If I had more time, I would travel all over South America.",
+      "tags": ["sample", "subjuntivo", "condicional"],
+      "note": "Unreal “if” sentences: si + imperfect subjunctive, then the conditional."
+    }
+  ]
+}
