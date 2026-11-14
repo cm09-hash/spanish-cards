@@ -116,7 +116,7 @@ export async function renderBackup(root: HTMLElement, notice?: string): Promise<
       h(
         'p',
         null,
-        'Puts all your cards and your full review history into one file. On an iPhone, choose “Save to Files” in the menu that appears.',
+        'Puts all your cards, your full review history, your sprints and your settings into one file. On an iPhone, choose “Save to Files” in the menu that appears.',
       ),
       h('button', { class: 'button primary big', onclick: saveBackup }, 'Save backup file'),
       saveResult,

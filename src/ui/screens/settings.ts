@@ -1,10 +1,11 @@
-/** Settings: new cards per day, sounds on or off, plus version information. */
+/** Settings: new cards per day, sounds, Spanish audio, typing, plus version information. */
 import { DESIRED_RETENTION, FSRS_VERSION } from '../../config';
 import { getSettings, updateSettings } from '../../data/db';
 import { checkForUpdate, onUpdateReady } from '../../pwa';
 import type { Cleanup } from '../app';
 import { h, setChildren } from '../dom';
 import { playSound, setSoundsEnabled } from '../sound';
+import { onVoicesChanged, setSpeechSpeed, speak, stopSpeaking, VOICE_TIP, voiceFor, voiceStatus } from '../speech';
 import { updateBanner } from '../updateBanner';
 
 const MAX_NEW_CARDS = 999;
@@ -43,6 +44,73 @@ export async function renderSettings(root: HTMLElement): Promise<Cleanup> {
     playSound('good'); // a little preview when switching on (silent when switching off)
     await updateSettings({ soundsOn: soundSwitch.checked });
   });
+
+  // ----- Spanish audio -----
+
+  const autoPlaySwitch = h('input', { id: 'auto-play', class: 'switch', type: 'checkbox', role: 'switch' });
+  autoPlaySwitch.checked = settings.autoPlayAudio;
+  autoPlaySwitch.addEventListener('change', () => void updateSettings({ autoPlayAudio: autoPlaySwitch.checked }));
+
+  const speedChoice = h(
+    'select',
+    { id: 'speech-speed', class: 'field' },
+    h('option', { value: 'normal', selected: settings.speechSpeed === 'normal' }, 'Normal'),
+    h('option', { value: 'slow', selected: settings.speechSpeed === 'slow' }, 'Slow'),
+  );
+  speedChoice.addEventListener('change', async () => {
+    const speed = speedChoice.value === 'slow' ? 'slow' : 'normal';
+    setSpeechSpeed(speed);
+    await updateSettings({ speechSpeed: speed });
+    speak('Un poco más despacio, por favor.', 'latam'); // a preview at the new speed
+  });
+
+  // Which voice the phone will use. It can take a moment for the phone to list its voices.
+  const voiceInfo = h('div', { class: 'result', 'aria-live': 'polite' });
+  const showVoice = () => {
+    const status = voiceStatus();
+    if (status === 'checking') return setChildren(voiceInfo, h('p', null, 'Looking for a Spanish voice…'));
+    if (status === 'none') {
+      return setChildren(
+        voiceInfo,
+        h(
+          'div',
+          { class: 'message' },
+          h('p', null, h('strong', null, 'No Spanish voice found on this device.')),
+          h('p', null, VOICE_TIP),
+        ),
+      );
+    }
+    const latam = voiceFor('latam')!;
+    const spain = voiceFor('spain')!;
+    const describe = (voice: SpeechSynthesisVoice) => `${voice.name} (${voice.lang.replace('_', '-')})`;
+    setChildren(
+      voiceInfo,
+      h('p', null, `Voice: ${describe(latam)}`),
+      h('p', null, `Voice for Spain sprints: ${describe(spain)}`),
+      h(
+        'div',
+        { class: 'button-row' },
+        h(
+          'button',
+          { class: 'button small', onclick: () => speak('Hola, ¿cómo estás? Vamos a practicar español.', 'latam') },
+          'Test voice',
+        ),
+        h(
+          'button',
+          { class: 'button small', onclick: () => speak('Hola, ¿qué tal? Vamos a practicar español.', 'spain') },
+          'Test Spain voice',
+        ),
+      ),
+    );
+  };
+  const stopWatchingVoices = onVoicesChanged(showVoice);
+  showVoice();
+
+  // ----- Typing answers -----
+
+  const typingSwitch = h('input', { id: 'type-answers', class: 'switch', type: 'checkbox', role: 'switch' });
+  typingSwitch.checked = settings.typeAnswers;
+  typingSwitch.addEventListener('change', () => void updateSettings({ typeAnswers: typingSwitch.checked }));
 
   // ----- Updates -----
 
@@ -96,6 +164,44 @@ export async function renderSettings(root: HTMLElement): Promise<Cleanup> {
     h(
       'section',
       { class: 'panel' },
+      h('h2', null, 'Spanish audio'),
+      h(
+        'div',
+        { class: 'switch-row' },
+        h('label', { class: 'setting-label', for: 'auto-play' }, 'Read cards aloud automatically'),
+        autoPlaySwitch,
+      ),
+      h(
+        'p',
+        null,
+        'When on, the Spanish is read out as soon as it appears. The speaker button on a card works either way.',
+      ),
+      h(
+        'div',
+        { class: 'switch-row' },
+        h('label', { class: 'setting-label', for: 'speech-speed' }, 'Speed'),
+        speedChoice,
+      ),
+      voiceInfo,
+    ),
+    h(
+      'section',
+      { class: 'panel' },
+      h(
+        'div',
+        { class: 'switch-row' },
+        h('label', { class: 'setting-title', for: 'type-answers' }, 'Type answers'),
+        typingSwitch,
+      ),
+      h(
+        'p',
+        null,
+        'When on, cards that ask you to produce Spanish (English → Spanish, conjugations and fill-in-the-blank) give you a box to type your answer before it is revealed. When off, you just think of the answer.',
+      ),
+    ),
+    h(
+      'section',
+      { class: 'panel' },
       h('h2', null, 'About'),
       h(
         'p',
@@ -112,5 +218,9 @@ export async function renderSettings(root: HTMLElement): Promise<Cleanup> {
     ),
   );
 
-  return stopListening;
+  return () => {
+    stopListening();
+    stopWatchingVoices();
+    stopSpeaking();
+  };
 }

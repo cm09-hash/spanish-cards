@@ -4,6 +4,7 @@ import { registerServiceWorker } from './pwa';
 import { initScheduler } from './study/scheduler';
 import { startApp } from './ui/app';
 import { setSoundsEnabled, unlockAudioOnFirstTouch } from './ui/sound';
+import { initSpeech, unlockSpeechOnFirstTouch } from './ui/speech';
 import { getSettings } from './data/db';
 
 async function main(): Promise<void> {
@@ -12,6 +13,7 @@ async function main(): Promise<void> {
     // Opening the database here also upgrades data saved by an older version of the app.
     const [settings] = await Promise.all([getSettings(), initScheduler()]);
     setSoundsEnabled(settings.soundsOn);
+    initSpeech(settings);
     startApp(container);
   } catch (error) {
     console.error(error);
@@ -20,6 +22,7 @@ async function main(): Promise<void> {
 
   registerServiceWorker();
   unlockAudioOnFirstTouch();
+  unlockSpeechOnFirstTouch();
 
   // iPhones only show a button's "pressed" look if the page listens for touches at all.
   document.addEventListener('touchstart', () => undefined, { passive: true });

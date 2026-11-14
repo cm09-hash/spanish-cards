@@ -5,31 +5,37 @@ import {
   editCard,
   getCard,
   getReviewsForCard,
+  getSprints,
   resetCardProgress,
   setCardFlag,
   setCardPaused,
+  setDirectionPaused,
 } from '../../data/db';
-import { parseTags } from '../../study/cardFilter';
-import { newSchedulingState } from '../../study/scheduler';
+import { parseTags, stageOf } from '../../study/cardFilter';
+import { itemsOf, productionStartDay, type StudyItem } from '../../study/directions';
+import { varietyOf } from '../../study/sprints';
 import { formatClockTime, formatDate, formatDateTime, formatInterval } from '../../study/time';
 import type { Rating, ReviewRecord, StoredCard } from '../../types';
 import { navigate } from '../app';
-import { cardBadges } from '../badges';
+import { cardBadges, DIRECTION_NAMES, DIRECTION_SHORT } from '../badges';
 import { cardView } from '../cardView';
 import { count, h, setChildren } from '../dom';
+import { stopSpeaking } from '../speech';
 
 const RATING_NAMES: Record<Rating, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 
-export async function renderCardDetail(root: HTMLElement, cardId: string): Promise<void> {
+export async function renderCardDetail(root: HTMLElement, cardId: string): Promise<() => void> {
   const backLink = h('a', { class: 'button small quiet back-link', href: '#/cards' }, '‹ Cards');
 
   /** Draws the normal view of the card. `notice` is a short confirmation of what just happened. */
   async function draw(notice?: string): Promise<void> {
-    const [card, reviews] = await Promise.all([getCard(cardId), getReviewsForCard(cardId)]);
+    const [card, reviews, sprints] = await Promise.all([getCard(cardId), getReviewsForCard(cardId), getSprints()]);
     if (!card) {
       setChildren(root, backLink, h('h1', null, 'Card not found'), h('p', null, 'It may have been deleted.'));
       return;
     }
+    const items = itemsOf(card);
+    const twoWay = items.length > 1;
 
     // One area below the buttons is shared by the small forms and "are you sure?" questions.
     const question = h('div', { class: 'result', 'aria-live': 'polite' });
@@ -87,7 +93,7 @@ export async function renderCardDetail(root: HTMLElement, cardId: string): Promi
         h(
           'p',
           null,
-          'Reset this card’s progress? It becomes a new card again and will be re-learned from scratch. Its review history is kept.',
+          `Reset this card’s progress${twoWay ? ' in both directions' : ''}? It becomes a new card again and will be re-learned from scratch. Its review history is kept.`,
         ),
         h(
           'div',
@@ -96,10 +102,7 @@ export async function renderCardDetail(root: HTMLElement, cardId: string): Promi
             'button',
             {
               class: 'button danger',
-              onclick: change(
-                () => resetCardProgress(cardId, newSchedulingState(cardId, new Date())),
-                'Progress reset. This card is new again.',
-              ),
+              onclick: change(() => resetCardProgress(cardId, new Date()), 'Progress reset. This card is new again.'),
             },
             'Reset progress',
           ),
@@ -131,11 +134,40 @@ export async function renderCardDetail(root: HTMLElement, cardId: string): Promi
       );
     }
 
+    /** One direction's progress, with its own pause button when the card has two directions. */
+    function progressPanel(item: StudyItem): HTMLElement {
+      const pausedAlone =
+        item.direction === 'recognition' ? card!.recognitionPaused : (card!.production?.paused ?? false);
+      const name = DIRECTION_NAMES[item.direction];
+      return h(
+        'section',
+        { class: 'panel' },
+        h('h2', null, twoWay ? name : 'Progress'),
+        factsTable(card!, item),
+        twoWay &&
+          h(
+            'button',
+            {
+              class: 'button small',
+              onclick: change(
+                () => setDirectionPaused(cardId, item.direction, !pausedAlone),
+                pausedAlone
+                  ? `${name} is back in your study sessions.`
+                  : `${name} is paused. The other direction carries on.`,
+              ),
+            },
+            pausedAlone ? 'Unpause this direction' : 'Pause this direction',
+          ),
+      );
+    }
+
+    const anyStudied = items.some((item) => item.scheduling.state !== 0);
+
     setChildren(
       root,
       backLink,
       notice && h('p', { class: 'message is-success' }, notice),
-      cardView(card, true),
+      cardView(card, { direction: 'recognition', revealed: true, variety: varietyOf(card, sprints) }),
       cardBadges(card),
       card.flag &&
         h(
@@ -171,7 +203,7 @@ export async function renderCardDetail(root: HTMLElement, cardId: string): Promi
                     'Paused. This card won’t appear in study sessions.',
                   ),
                 },
-                'Pause',
+                twoWay ? 'Pause card' : 'Pause',
               ),
           card.flag
             ? h(
@@ -180,18 +212,19 @@ export async function renderCardDetail(root: HTMLElement, cardId: string): Promi
                 'Unflag',
               )
             : h('button', { class: 'button', onclick: askFlagReason }, 'Flag for Claude'),
-          h('button', { class: 'button', onclick: askReset, disabled: card.scheduling.state === 0 }, 'Reset progress'),
+          h('button', { class: 'button', onclick: askReset, disabled: !anyStudied }, 'Reset progress'),
           h('button', { class: 'button danger-text', onclick: askDelete }, 'Delete'),
         ),
         question,
       ),
-      h('section', { class: 'panel' }, h('h2', null, 'Progress'), factsTable(card)),
-      h('section', { class: 'panel' }, h('h2', null, 'Review history'), historyList(reviews)),
+      items.map(progressPanel),
+      h('section', { class: 'panel' }, h('h2', null, 'Review history'), historyList(reviews, twoWay)),
     );
   }
 
   /** Swaps the view for a form to edit the card's text. */
   function drawEditForm(card: StoredCard): void {
+    stopSpeaking();
     const front = textArea('Front', card.front, 3);
     const back = textArea('Back', card.back, 3);
     const note = textArea('Note (optional)', card.note ?? '', 3);
@@ -248,6 +281,7 @@ export async function renderCardDetail(root: HTMLElement, cardId: string): Promi
   }
 
   await draw();
+  return stopSpeaking;
 }
 
 function textArea(label: string, value: string, rows: number): { field: HTMLElement; area: HTMLTextAreaElement } {
@@ -256,29 +290,44 @@ function textArea(label: string, value: string, rows: number): { field: HTMLElem
   return { area, field: h('label', { class: 'form-field' }, h('span', null, label), area) };
 }
 
-function factsTable(card: StoredCard): HTMLElement {
-  const { scheduling } = card;
+const STAGE_NAMES = { new: 'New', learning: 'Learning', review: 'Review' } as const;
+
+function factsTable(card: StoredCard, item: StudyItem): HTMLElement {
+  const { scheduling } = item;
   const now = new Date();
   const due = new Date(scheduling.dueAt);
 
   let nextDue: string;
-  if (scheduling.state === 0) nextDue = 'Not started yet';
-  else if (due <= now) nextDue = 'Now';
-  else nextDue = due.getTime() - now.getTime() < 2 * 24 * 60 * 60 * 1000 ? formatClockTime(due, now) : formatDate(due);
-  if (card.paused) nextDue += ' (paused)';
+  if (scheduling.state === 0) {
+    nextDue = 'Not started yet';
+    if (item.direction === 'production') {
+      // This direction waits a few days after the other one has been started.
+      const startsOn = productionStartDay(card);
+      if (startsOn === null) nextDue = 'Starts a few days after Spanish → English';
+      else if (startsOn > now) nextDue = `Starts ${formatDate(startsOn)}`;
+    }
+  } else if (due <= now) {
+    nextDue = 'Now';
+  } else {
+    nextDue = due.getTime() - now.getTime() < 2 * 24 * 60 * 60 * 1000 ? formatClockTime(due, now) : formatDate(due);
+  }
+  if (item.paused) nextDue += ' (paused)';
 
   const facts: [string, string][] = [
+    ['Stage', STAGE_NAMES[stageOf(scheduling)]],
     ['Times reviewed', String(scheduling.reps)],
     ['Times forgotten', String(scheduling.lapses)],
     ['Next due', nextDue],
-    ['Added', formatDate(new Date(card.addedAt))],
   ];
-  if (card.editedAt) facts.push(['Last edited', formatDate(new Date(card.editedAt))]);
+  if (item.direction === 'recognition') {
+    facts.push(['Added', formatDate(new Date(card.addedAt))]);
+    if (card.editedAt) facts.push(['Last edited', formatDate(new Date(card.editedAt))]);
+  }
 
   return h('dl', { class: 'facts' }, facts.map(([name, value]) => [h('dt', null, name), h('dd', null, value)]).flat());
 }
 
-function historyList(reviews: ReviewRecord[]): HTMLElement {
+function historyList(reviews: ReviewRecord[], twoWay: boolean): HTMLElement {
   if (reviews.length === 0) return h('p', null, 'No reviews yet.');
   return h(
     'ol',
@@ -290,7 +339,12 @@ function historyList(reviews: ReviewRecord[]): HTMLElement {
       return h(
         'li',
         null,
-        h('span', { class: 'history-when' }, formatDateTime(when)),
+        h(
+          'span',
+          { class: 'history-when' },
+          formatDateTime(when),
+          twoWay && h('span', { class: 'history-direction' }, DIRECTION_SHORT[review.direction]),
+        ),
         h('span', { class: `history-rating rating-${name.toLowerCase()}` }, name),
         h('span', { class: 'history-next' }, `next in ${formatInterval(when, new Date(review.after.dueAt))}`),
       );

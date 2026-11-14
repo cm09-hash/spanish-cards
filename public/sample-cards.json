@@ -1,84 +1,114 @@
 {
+  "sprint": {
+    "name": "Chess talk (sample)",
+    "endDate": "2026-12-31",
+    "tag": "ajedrez",
+    "variety": "latam"
+  },
   "cards": [
     {
-      "id": "sample-vocab-aprovechar",
+      "id": "sample2-vocab-tablero",
       "type": "vocab",
-      "front": "aprovechar",
-      "back": "to make the most of; to take advantage of",
-      "tags": ["sample", "verbs"],
-      "note": "Hay que aprovechar el buen tiempo. — We should make the most of the good weather."
-    },
-    {
-      "id": "sample-vocab-desafio",
-      "type": "vocab",
-      "front": "el desafío",
-      "back": "the challenge",
+      "front": "el tablero",
+      "back": "the board (for chess and other games)",
       "tags": ["sample", "nouns"],
-      "note": "Aprender un idioma es un desafío. — Learning a language is a challenge."
+      "note": "Las piezas ya están en el tablero. — The pieces are already on the board."
     },
     {
-      "id": "sample-conj-poner-preterito-ellos",
+      "id": "sample2-vocab-jugada",
+      "type": "vocab",
+      "front": "la jugada",
+      "back": "the move (in a game)",
+      "tags": ["sample", "nouns"],
+      "note": "¡Qué buena jugada! — What a good move!"
+    },
+    {
+      "id": "sample2-vocab-enrocar",
+      "type": "vocab",
+      "front": "enrocar",
+      "back": "to castle (in chess)",
+      "tags": ["sample", "verbs"],
+      "directions": ["recognition"],
+      "note": "A rare word: this card is only studied Spanish → English."
+    },
+    {
+      "id": "sample2-phrase-te-toca",
+      "type": "phrase",
+      "front": "Te toca. / Te toca a ti.",
+      "back": "It's your turn.",
+      "tags": ["sample", "everyday"],
+      "note": "Either answer is accepted when you type it."
+    },
+    {
+      "id": "sample2-phrase-jugamos-otra",
+      "type": "phrase",
+      "front": "¿Jugamos otra?",
+      "back": "Shall we play another one?",
+      "tags": ["sample", "everyday"],
+      "note": "“otra” = otra partida, another game."
+    },
+    {
+      "id": "sample2-conj-mover-presente-yo",
       "type": "conjugation",
-      "front": "poner → pretérito, ellos",
-      "back": "pusieron",
-      "tags": ["sample", "pretérito", "irregular"],
-      "note": "Irregular stem pus-: puse, pusiste, puso, pusimos, pusisteis, pusieron."
+      "front": "mover → presente, yo",
+      "back": "muevo",
+      "verb": "mover",
+      "meaning": "to move",
+      "tense": "presente",
+      "person": "yo",
+      "table": {
+        "yo": "muevo",
+        "tú": "mueves",
+        "él": "mueve",
+        "nosotros": "movemos",
+        "vosotros": "movéis",
+        "ellos": "mueven"
+      },
+      "tags": ["sample", "presente", "irregular"],
+      "note": "o → ue in every form except nosotros and vosotros."
     },
     {
-      "id": "sample-conj-hacer-subjuntivo-yo",
+      "id": "sample2-conj-ganar-preterito-ellos",
       "type": "conjugation",
-      "front": "hacer → presente de subjuntivo, yo",
-      "back": "haga",
-      "tags": ["sample", "subjuntivo", "irregular"],
-      "note": "Quieren que yo haga la cena. — They want me to make dinner."
+      "front": "ganar → pretérito, ellos",
+      "back": "ganaron",
+      "verb": "ganar",
+      "meaning": "to win",
+      "tense": "pretérito",
+      "person": "ellos",
+      "table": {
+        "yo": "gané",
+        "tú": "ganaste",
+        "él": "ganó",
+        "nosotros": "ganamos",
+        "vosotros": "ganasteis",
+        "ellos": "ganaron"
+      },
+      "tags": ["sample", "pretérito"]
     },
     {
-      "id": "sample-grammar-por-para-deadline",
+      "id": "sample2-grammar-tocar-turno",
       "type": "grammar",
-      "front": "¿Por o para? Which one do you use for a deadline, and which for how long something lasted?",
-      "back": "para = deadline\npor = duration",
-      "tags": ["sample", "por-para"],
-      "note": "Lo necesito para el lunes. — I need it by Monday.\nViví en Chile por dos años. — I lived in Chile for two years."
+      "front": "How do you say whose turn it is, using «tocar»?",
+      "back": "tocar + a + the person\nMe toca (a mí). Le toca a ella.",
+      "audio": "Me toca a mí. Le toca a ella.",
+      "tags": ["sample"],
+      "note": "It works like gustar: the turn “falls to” someone."
     },
     {
-      "id": "sample-phrase-echar-de-menos",
-      "type": "phrase",
-      "front": "echar de menos",
-      "back": "to miss (someone or something)",
-      "tags": ["sample", "idioms"],
-      "note": "Echo de menos a mi familia. — I miss my family."
-    },
-    {
-      "id": "sample-phrase-me-da-igual",
-      "type": "phrase",
-      "front": "Me da igual.",
-      "back": "I don't mind. / It's all the same to me.",
-      "tags": ["sample", "everyday"],
-      "note": "— ¿Pizza o pasta? — Me da igual."
-    },
-    {
-      "id": "sample-listening-echar-una-mano",
+      "id": "sample2-listening-blancas-negras",
       "type": "listening",
-      "front": "¿Me puedes echar una mano con esto?",
-      "back": "Can you give me a hand with this?",
-      "tags": ["sample", "everyday"],
-      "note": "echar una mano = to lend a hand"
+      "front": "¿Quieres jugar con blancas o con negras?",
+      "back": "Do you want to play white or black?",
+      "tags": ["sample", "everyday"]
     },
     {
-      "id": "sample-cloze-ir-preterito",
+      "id": "sample2-cloze-si-muevo",
       "type": "cloze",
-      "front": "Ayer {{c1::fui::ir}} al mercado y compré fruta.",
-      "back": "Yesterday I went to the market and bought fruit.",
-      "tags": ["sample", "pretérito"],
-      "note": "Pretérito of ir: fui, fuiste, fue, fuimos, fuisteis, fueron."
-    },
-    {
-      "id": "sample-cloze-si-tuviera",
-      "type": "cloze",
-      "front": "Si {{c1::tuviera::tener}} más tiempo, {{c2::viajaría::viajar}} por toda Sudamérica.",
-      "back": "If I had more time, I would travel all over South America.",
-      "tags": ["sample", "subjuntivo", "condicional"],
-      "note": "Unreal “if” sentences: si + imperfect subjunctive, then the conditional."
+      "front": "Si {{c1::muevo::mover}} el caballo, {{c2::pierdo::perder}} la dama.",
+      "back": "If I move the knight, I lose the queen.",
+      "tags": ["sample", "presente"],
+      "note": "el caballo = the knight, la dama = the queen."
     }
   ]
 }

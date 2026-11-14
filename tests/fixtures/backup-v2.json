@@ -1,0 +1,702 @@
+{
+  "app": "spanish-cards",
+  "formatVersion": 2,
+  "exportedAt": "2026-11-13T22:27:50.162Z",
+  "scheduler": {
+    "algorithm": "FSRS-7",
+    "desiredRetention": 0.9
+  },
+  "settings": {
+    "newCardsPerDay": 9,
+    "soundsOn": false
+  },
+  "cards": [
+    {
+      "id": "mine-conj-tener-pret-yo",
+      "front": "tener → pretérito, yo",
+      "back": "tuve",
+      "type": "conjugation",
+      "tags": [
+        "pretérito"
+      ],
+      "addedAt": "2026-11-13T22:27:41.772Z",
+      "position": 13,
+      "scheduling": {
+        "cardId": "mine-conj-tener-pret-yo",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.772Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "mine-phrase-vale-la-pena",
+      "front": "vale la pena",
+      "back": "it is worth it",
+      "type": "phrase",
+      "tags": [
+        "idioms"
+      ],
+      "note": "Vale la pena intentarlo.",
+      "addedAt": "2026-11-13T22:27:41.772Z",
+      "position": 12,
+      "scheduling": {
+        "cardId": "mine-phrase-vale-la-pena",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.772Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "mine-vocab-ajedrez",
+      "front": "el ajedrez",
+      "back": "chess (the game)",
+      "type": "vocab",
+      "tags": [
+        "games"
+      ],
+      "addedAt": "2026-11-13T22:27:41.772Z",
+      "position": 11,
+      "scheduling": {
+        "cardId": "mine-vocab-ajedrez",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.772Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": "2026-11-13T22:27:50.128Z"
+    },
+    {
+      "id": "sample-cloze-ir-preterito",
+      "front": "Ayer {{c1::fui::ir}} al mercado y compré fruta.",
+      "back": "Yesterday I went to the market and bought fruit.",
+      "type": "cloze",
+      "tags": [
+        "sample",
+        "pretérito"
+      ],
+      "note": "Pretérito of ir: fui, fuiste, fue, fuimos, fuisteis, fueron.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 9,
+      "scheduling": {
+        "cardId": "sample-cloze-ir-preterito",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-cloze-si-tuviera",
+      "front": "Si {{c1::tuviera::tener}} más tiempo, {{c2::viajaría::viajar}} por toda Sudamérica.",
+      "back": "If I had more time, I would travel all over South America.",
+      "type": "cloze",
+      "tags": [
+        "sample",
+        "subjuntivo",
+        "condicional"
+      ],
+      "note": "Unreal “if” sentences: si + imperfect subjunctive, then the conditional.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 10,
+      "scheduling": {
+        "cardId": "sample-cloze-si-tuviera",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-conj-hacer-subjuntivo-yo",
+      "front": "hacer → presente de subjuntivo, yo",
+      "back": "haga",
+      "type": "conjugation",
+      "tags": [
+        "sample",
+        "subjuntivo",
+        "irregular"
+      ],
+      "note": "Quieren que yo haga la cena. — They want me to make dinner.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 4,
+      "scheduling": {
+        "cardId": "sample-conj-hacer-subjuntivo-yo",
+        "state": 1,
+        "scheduleStatus": "learning",
+        "dueAt": "2026-11-14T12:48:05.340Z",
+        "lastReviewAt": "2026-11-13T22:27:44.695Z",
+        "stability": 2.2395,
+        "stabilityFast": 1.7916,
+        "difficulty": 5.26127831,
+        "scheduledDays": 0.597461174074661,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-conj-poner-preterito-ellos",
+      "front": "poner → pretérito, ellos",
+      "back": "pusieron",
+      "type": "conjugation",
+      "tags": [
+        "sample",
+        "pretérito",
+        "irregular"
+      ],
+      "note": "Irregular stem pus-: puse, pusiste, puso, pusimos, pusisteis, pusieron.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 3,
+      "scheduling": {
+        "cardId": "sample-conj-poner-preterito-ellos",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2027-01-08T22:27:44.194Z",
+        "lastReviewAt": "2026-11-13T22:27:44.194Z",
+        "stability": 11.7841,
+        "stabilityFast": 9.42728,
+        "difficulty": 1,
+        "scheduledDays": 56,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-grammar-por-para-deadline",
+      "front": "¿Por o para? Which one do you use for a deadline, and which for how long something lasted?",
+      "back": "para = deadline\npor = duration",
+      "type": "grammar",
+      "tags": [
+        "sample",
+        "por-para"
+      ],
+      "note": "Lo necesito para el lunes. — I need it by Monday.\nViví en Chile por dos años. — I lived in Chile for two years.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 5,
+      "scheduling": {
+        "cardId": "sample-grammar-por-para-deadline",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2026-11-18T22:27:45.195Z",
+        "lastReviewAt": "2026-11-13T22:27:45.195Z",
+        "stability": 3.9221,
+        "stabilityFast": 3.13768,
+        "difficulty": 3.53072398,
+        "scheduledDays": 5,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-listening-echar-una-mano",
+      "front": "¿Me puedes echar una mano con esto?",
+      "back": "Can you give me a hand with this?",
+      "type": "listening",
+      "tags": [
+        "sample",
+        "everyday"
+      ],
+      "note": "echar una mano = to lend a hand",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 8,
+      "scheduling": {
+        "cardId": "sample-listening-echar-una-mano",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2026-11-17T22:27:47.161Z",
+        "lastReviewAt": "2026-11-13T22:27:47.161Z",
+        "stability": 3.9221,
+        "stabilityFast": 3.13768,
+        "difficulty": 3.53072398,
+        "scheduledDays": 4,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-phrase-echar-de-menos",
+      "front": "echar de menos",
+      "back": "to miss (someone or something)",
+      "type": "phrase",
+      "tags": [
+        "sample",
+        "idioms"
+      ],
+      "note": "Echo de menos a mi familia. — I miss my family.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 6,
+      "scheduling": {
+        "cardId": "sample-phrase-echar-de-menos",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2026-11-18T22:27:45.695Z",
+        "lastReviewAt": "2026-11-13T22:27:45.695Z",
+        "stability": 3.9221,
+        "stabilityFast": 3.13768,
+        "difficulty": 3.53072398,
+        "scheduledDays": 5,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-phrase-me-da-igual",
+      "front": "Me da igual.",
+      "back": "I don't mind. / It's all the same to me.",
+      "type": "phrase",
+      "tags": [
+        "sample",
+        "everyday"
+      ],
+      "note": "— ¿Pizza o pasta? — Me da igual.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 7,
+      "scheduling": {
+        "cardId": "sample-phrase-me-da-igual",
+        "state": 1,
+        "scheduleStatus": "learning",
+        "dueAt": "2026-11-13T22:28:46.195Z",
+        "lastReviewAt": "2026-11-13T22:27:46.195Z",
+        "stability": 0.1104,
+        "stabilityFast": 0.08832,
+        "difficulty": 6.1686,
+        "scheduledDays": 0.0006944444444444445,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      },
+      "paused": true,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-vocab-aprovechar",
+      "front": "aprovechar",
+      "back": "to make the most of; to take advantage of",
+      "type": "vocab",
+      "tags": [
+        "sample",
+        "verbs"
+      ],
+      "note": "Hay que aprovechar el buen tiempo. — We should make the most of the good weather.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 1,
+      "scheduling": {
+        "cardId": "sample-vocab-aprovechar",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2026-11-17T22:27:42.729Z",
+        "lastReviewAt": "2026-11-13T22:27:42.729Z",
+        "stability": 3.9221,
+        "stabilityFast": 3.13768,
+        "difficulty": 3.53072398,
+        "scheduledDays": 4,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": null,
+      "editedAt": null
+    },
+    {
+      "id": "sample-vocab-desafio",
+      "front": "el desafío",
+      "back": "the challenge",
+      "type": "vocab",
+      "tags": [
+        "sample",
+        "nouns"
+      ],
+      "note": "Aprender un idioma es un desafío. — Learning a language is a challenge.",
+      "addedAt": "2026-11-13T22:27:41.720Z",
+      "position": 2,
+      "scheduling": {
+        "cardId": "sample-vocab-desafio",
+        "state": 1,
+        "scheduleStatus": "learning",
+        "dueAt": "2026-11-13T22:28:43.229Z",
+        "lastReviewAt": "2026-11-13T22:27:43.229Z",
+        "stability": 0.1104,
+        "stabilityFast": 0.08832,
+        "difficulty": 6.1686,
+        "scheduledDays": 0.0006944444444444445,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      },
+      "paused": false,
+      "leech": false,
+      "flag": {
+        "reason": "translation seems wrong",
+        "flaggedAt": "2026-11-13T22:27:49.746Z",
+        "by": "you"
+      },
+      "editedAt": null
+    }
+  ],
+  "reviews": [
+    {
+      "id": 1,
+      "cardId": "sample-vocab-aprovechar",
+      "rating": 3,
+      "timestamp": "2026-11-13T22:27:42.729Z",
+      "durationMs": 525,
+      "before": {
+        "cardId": "sample-vocab-aprovechar",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "after": {
+        "cardId": "sample-vocab-aprovechar",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2026-11-17T22:27:42.729Z",
+        "lastReviewAt": "2026-11-13T22:27:42.729Z",
+        "stability": 3.9221,
+        "stabilityFast": 3.13768,
+        "difficulty": 3.53072398,
+        "scheduledDays": 4,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      }
+    },
+    {
+      "id": 2,
+      "cardId": "sample-vocab-desafio",
+      "rating": 1,
+      "timestamp": "2026-11-13T22:27:43.229Z",
+      "durationMs": 833,
+      "before": {
+        "cardId": "sample-vocab-desafio",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "after": {
+        "cardId": "sample-vocab-desafio",
+        "state": 1,
+        "scheduleStatus": "learning",
+        "dueAt": "2026-11-13T22:28:43.229Z",
+        "lastReviewAt": "2026-11-13T22:27:43.229Z",
+        "stability": 0.1104,
+        "stabilityFast": 0.08832,
+        "difficulty": 6.1686,
+        "scheduledDays": 0.0006944444444444445,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      }
+    },
+    {
+      "id": 3,
+      "cardId": "sample-conj-poner-preterito-ellos",
+      "rating": 4,
+      "timestamp": "2026-11-13T22:27:44.194Z",
+      "durationMs": 599,
+      "before": {
+        "cardId": "sample-conj-poner-preterito-ellos",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "after": {
+        "cardId": "sample-conj-poner-preterito-ellos",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2027-01-08T22:27:44.194Z",
+        "lastReviewAt": "2026-11-13T22:27:44.194Z",
+        "stability": 11.7841,
+        "stabilityFast": 9.42728,
+        "difficulty": 1,
+        "scheduledDays": 56,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      }
+    },
+    {
+      "id": 4,
+      "cardId": "sample-conj-hacer-subjuntivo-yo",
+      "rating": 2,
+      "timestamp": "2026-11-13T22:27:44.695Z",
+      "durationMs": 482,
+      "before": {
+        "cardId": "sample-conj-hacer-subjuntivo-yo",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "after": {
+        "cardId": "sample-conj-hacer-subjuntivo-yo",
+        "state": 1,
+        "scheduleStatus": "learning",
+        "dueAt": "2026-11-14T12:48:05.340Z",
+        "lastReviewAt": "2026-11-13T22:27:44.695Z",
+        "stability": 2.2395,
+        "stabilityFast": 1.7916,
+        "difficulty": 5.26127831,
+        "scheduledDays": 0.597461174074661,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      }
+    },
+    {
+      "id": 5,
+      "cardId": "sample-grammar-por-para-deadline",
+      "rating": 3,
+      "timestamp": "2026-11-13T22:27:45.195Z",
+      "durationMs": 482,
+      "before": {
+        "cardId": "sample-grammar-por-para-deadline",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "after": {
+        "cardId": "sample-grammar-por-para-deadline",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2026-11-18T22:27:45.195Z",
+        "lastReviewAt": "2026-11-13T22:27:45.195Z",
+        "stability": 3.9221,
+        "stabilityFast": 3.13768,
+        "difficulty": 3.53072398,
+        "scheduledDays": 5,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      }
+    },
+    {
+      "id": 6,
+      "cardId": "sample-phrase-echar-de-menos",
+      "rating": 3,
+      "timestamp": "2026-11-13T22:27:45.695Z",
+      "durationMs": 482,
+      "before": {
+        "cardId": "sample-phrase-echar-de-menos",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "after": {
+        "cardId": "sample-phrase-echar-de-menos",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2026-11-18T22:27:45.695Z",
+        "lastReviewAt": "2026-11-13T22:27:45.695Z",
+        "stability": 3.9221,
+        "stabilityFast": 3.13768,
+        "difficulty": 3.53072398,
+        "scheduledDays": 5,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      }
+    },
+    {
+      "id": 7,
+      "cardId": "sample-phrase-me-da-igual",
+      "rating": 1,
+      "timestamp": "2026-11-13T22:27:46.195Z",
+      "durationMs": 832,
+      "before": {
+        "cardId": "sample-phrase-me-da-igual",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "after": {
+        "cardId": "sample-phrase-me-da-igual",
+        "state": 1,
+        "scheduleStatus": "learning",
+        "dueAt": "2026-11-13T22:28:46.195Z",
+        "lastReviewAt": "2026-11-13T22:27:46.195Z",
+        "stability": 0.1104,
+        "stabilityFast": 0.08832,
+        "difficulty": 6.1686,
+        "scheduledDays": 0.0006944444444444445,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      }
+    },
+    {
+      "id": 8,
+      "cardId": "sample-listening-echar-una-mano",
+      "rating": 3,
+      "timestamp": "2026-11-13T22:27:47.161Z",
+      "durationMs": 599,
+      "before": {
+        "cardId": "sample-listening-echar-una-mano",
+        "state": 0,
+        "scheduleStatus": "new",
+        "dueAt": "2026-11-13T22:27:41.720Z",
+        "lastReviewAt": null,
+        "stability": 0,
+        "stabilityFast": 0,
+        "difficulty": 0,
+        "scheduledDays": 0,
+        "learningStep": 0,
+        "reps": 0,
+        "lapses": 0
+      },
+      "after": {
+        "cardId": "sample-listening-echar-una-mano",
+        "state": 2,
+        "scheduleStatus": "review",
+        "dueAt": "2026-11-17T22:27:47.161Z",
+        "lastReviewAt": "2026-11-13T22:27:47.161Z",
+        "stability": 3.9221,
+        "stabilityFast": 3.13768,
+        "difficulty": 3.53072398,
+        "scheduledDays": 4,
+        "learningStep": 0,
+        "reps": 1,
+        "lapses": 0
+      }
+    }
+  ]
+}
