@@ -4,6 +4,7 @@ import { FileProblem } from '../../data/cardFile';
 import { getSettings, readEverything, replaceEverything, updateSettings } from '../../data/db';
 import { formatDate } from '../../study/time';
 import { count, filePickerButton, h, setChildren } from '../dom';
+import { saveFile } from '../saveFile';
 
 export async function renderBackup(root: HTMLElement, notice?: string): Promise<void> {
   const now = new Date();
@@ -21,30 +22,13 @@ export async function renderBackup(root: HTMLElement, notice?: string): Promise<
   // ----- Saving a backup -----
 
   function saveBackup(): void {
-    const shareData = { files: [file] };
-    const onPhone = window.matchMedia('(pointer: coarse)').matches;
-    if (onPhone && navigator.canShare?.(shareData)) {
-      // Phones and tablets: open the share sheet, where "Save to Files" lives.
-      navigator.share(shareData).then(
-        () => void backupSaved('Backup shared. If you chose “Save to Files”, it is now in the Files app.'),
-        (error: unknown) => {
-          const cancelled = error instanceof DOMException && error.name === 'AbortError';
-          if (!cancelled) downloadBackup();
-        },
-      );
-    } else {
-      downloadBackup();
-    }
-  }
-
-  function downloadBackup(): void {
-    const url = URL.createObjectURL(file);
-    const link = h('a', { href: url, download: fileName });
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    void backupSaved(`Backup downloaded as ${fileName}.`);
+    saveFile(file, (how) =>
+      backupSaved(
+        how === 'shared'
+          ? 'Backup shared. If you chose “Save to Files”, it is now in the Files app.'
+          : `Backup downloaded as ${fileName}.`,
+      ),
+    );
   }
 
   async function backupSaved(text: string): Promise<void> {

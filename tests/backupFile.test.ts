@@ -2,10 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { backupFileName, buildBackup, parseBackup } from '../src/data/backupFile';
 import { FileProblem } from '../src/data/cardFile';
 import type { EverythingSaved } from '../src/data/db';
+import { studyDate } from '../src/study/dates';
 import { initScheduler, previewRatings } from '../src/study/scheduler';
 import type { ReviewRecord, Settings, Sprint } from '../src/types';
 import backupFromVersion1 from './fixtures/backup-v1.json';
 import backupFromRound1 from './fixtures/backup-v2.json';
+import backupFromRound2 from './fixtures/backup-v3.json';
 import { makeCard, makeProduction } from './helpers';
 
 beforeAll(() => initScheduler());
@@ -13,12 +15,15 @@ beforeAll(() => initScheduler());
 /** This device's settings at the moment of restoring. */
 const current: Settings = {
   newCardsPerDay: 15,
+  goalKind: 'all',
+  goalReviews: 20,
   soundsOn: true,
   autoPlayAudio: true,
   speechSpeed: 'normal',
   typeAnswers: true,
   voiceTipSeen: true,
   lastBackupAt: null,
+  lastReportAt: null,
 };
 const now = new Date('2026-03-01T09:00:00.000Z');
 
@@ -94,8 +99,34 @@ function exampleData(): EverythingSaved {
     cards: [studied, makeCard('unseen', {}, 2), marked, typedCard, conjugation],
     reviews: [review, typedReview],
     sprints: [sprint],
+    captures: [
+      {
+        id: 'capture-1',
+        text: 'how do I say “to-go box”?',
+        type: 'vocab',
+        context: 'at the taquería',
+        createdAt: now.toISOString(),
+        status: 'waiting',
+        sentAt: null,
+      },
+      {
+        id: 'capture-2',
+        text: 'heard: “qué onda” at work',
+        type: 'other',
+        context: '',
+        createdAt: '2026-02-20T18:00:00.000Z',
+        status: 'sent',
+        sentAt: '2026-02-22T09:00:00.000Z',
+      },
+    ],
+    studyDays: [
+      { date: '2026-02-27', reviews: 12 },
+      { date: '2026-03-01', reviews: 2 },
+    ],
     settings: {
       ...current,
+      goalKind: 'reviews',
+      goalReviews: 35,
       newCardsPerDay: 20,
       soundsOn: false,
       autoPlayAudio: false,
@@ -114,6 +145,9 @@ describe('backup files', () => {
     expect(restored.cards).toEqual(data.cards);
     expect(restored.reviews).toEqual(data.reviews.map(({ id: _id, ...rest }) => rest));
     expect(restored.sprints).toEqual(data.sprints);
+    expect(restored.captures).toEqual(data.captures);
+    expect(restored.studyDays).toEqual(data.studyDays);
+    expect(restored.settings).toMatchObject({ goalKind: 'reviews', goalReviews: 35 });
     expect(restored.settings).toMatchObject({
       newCardsPerDay: 20,
       soundsOn: false,
@@ -133,7 +167,7 @@ describe('backup files', () => {
   it('labels the file so it can be recognised', () => {
     expect(buildBackup(exampleData(), now)).toMatchObject({
       app: 'spanish-cards',
-      formatVersion: 3,
+      formatVersion: 4,
       exportedAt: now.toISOString(),
     });
     expect(backupFileName(new Date(2026, 2, 1))).toBe('spanish-cards-backup-2026-03-01.json');
@@ -145,7 +179,7 @@ describe('backup files', () => {
   });
 
   it('refuses backups from a newer format version it does not know', () => {
-    const backup = { ...buildBackup(exampleData(), now), formatVersion: 4 };
+    const backup = { ...buildBackup(exampleData(), now), formatVersion: 5 };
     expect(() => parseBackup(JSON.stringify(backup), current)).toThrow(/newer version/);
   });
 
@@ -177,10 +211,18 @@ describe('backup files', () => {
     refuses((backup) => (backup.sprints[0].endDate = 'soon'), /Sprint 1 in the backup is damaged/);
     refuses((backup) => (backup.sprints[0].variety = 'mexico'), /Sprint 1 in the backup is damaged/);
     refuses((backup) => backup.sprints.push(backup.sprints[0]), /same sprint more than once/);
+    // New in format 4:
+    refuses((backup) => (backup.captures[0].text = '   '), /Log entry 1 in the backup is damaged/);
+    refuses((backup) => (backup.captures[1].status = 'lost'), /Log entry 2 in the backup is damaged/);
+    refuses((backup) => (backup.captures[0].type = 'poem'), /Log entry 1 in the backup is damaged/);
+    refuses((backup) => backup.captures.push(backup.captures[0]), /same log entry more than once/);
+    refuses((backup) => (backup.studyDays[0].date = 'yesterday'), /Study day 1 in the backup is damaged/);
+    refuses((backup) => (backup.studyDays[1].reviews = 0), /Study day 2 in the backup is damaged/);
+    refuses((backup) => backup.studyDays.push(backup.studyDays[0]), /same study day more than once/);
   });
 });
 
-// Real backup files saved by the two earlier releases of the app.
+// Real backup files saved by the two earliest releases of the app.
 describe.each([
   ['version 1 (the first release)', backupFromVersion1, 1],
   ['version 2 (Round 1)', backupFromRound1, 2],
@@ -257,5 +299,54 @@ describe('older backups: details', () => {
     const [card] = parseBackup(JSON.stringify(old), current, now).cards;
     expect(card.leech).toBe(true);
     expect(card.flag).toMatchObject({ by: 'leech', flaggedAt: now.toISOString() });
+  });
+});
+
+describe('backups made by format version 3 (Round 2)', () => {
+  // A real backup saved by the Round 2 release: both directions, typed answers, two sprints, a flag, a paused direction.
+  const original = backupFromRound2;
+  const restored = parseBackup(JSON.stringify(original), current, now);
+
+  it('can still be restored, with every card, review and sprint exactly as it was', () => {
+    expect(original.formatVersion).toBe(3);
+    expect(restored.cards).toEqual(original.cards);
+    expect(restored.reviews).toEqual(original.reviews.map(({ id: _id, ...rest }) => rest));
+    expect(restored.sprints).toEqual(original.sprints);
+    expect(restored.settings).toMatchObject(original.settings);
+  });
+
+  it('really does contain the Round 2 features, so the check above means something', () => {
+    expect(original.reviews.some((review) => review.direction === 'production')).toBe(true);
+    expect(original.reviews.some((review) => review.typed !== null)).toBe(true);
+    expect(original.cards.some((card) => card.production?.paused)).toBe(true);
+    expect(original.cards.some((card) => card.flag !== null)).toBe(true);
+    expect(original.sprints.length).toBeGreaterThan(0);
+  });
+
+  it('rebuilds the list of study days from the review history, so the streak carries over', () => {
+    const expected = new Map<string, number>();
+    for (const review of original.reviews) {
+      const date = studyDate(new Date(review.timestamp));
+      expected.set(date, (expected.get(date) ?? 0) + 1);
+    }
+    expect(restored.studyDays).toEqual([...expected].sort().map(([date, reviews]) => ({ date, reviews })));
+    expect(restored.studyDays.reduce((sum, day) => sum + day.reviews, 0)).toBe(original.reviews.length);
+  });
+
+  it('starts with an empty capture log and this device’s goal setting', () => {
+    expect(restored.captures).toEqual([]);
+    expect(restored.settings).toMatchObject({ goalKind: 'all', goalReviews: 20 });
+  });
+});
+
+describe('study days in older backups', () => {
+  it.each([
+    ['version 1', backupFromVersion1],
+    ['version 2', backupFromRound1],
+  ])('are rebuilt from the reviews of a %s backup', (_name, original) => {
+    const restored = parseBackup(JSON.stringify(original), current, now);
+    expect(restored.studyDays.length).toBeGreaterThan(0);
+    expect(restored.studyDays.reduce((sum, day) => sum + day.reviews, 0)).toBe(original.reviews.length);
+    expect(restored.captures).toEqual([]);
   });
 });

@@ -18,11 +18,13 @@ import { pickNextCard, summarize, todaysProgress, type QueueOptions, type StudyS
 import { rateCard } from '../../study/rate';
 import { previewRatings, type RatingOutcome } from '../../study/scheduler';
 import { varietyOf } from '../../study/sprints';
+import { milestoneReached, type Streak } from '../../study/streak';
 import { formatClockTime, formatInterval } from '../../study/time';
 import { loadToday } from '../../study/today';
 import { speechPlan } from '../../study/voices';
 import type { Direction, Rating, Settings, StoredCard, Variety } from '../../types';
 import { navigate, type Cleanup } from '../app';
+import { openCapture } from '../capture';
 import { cardView } from '../cardView';
 import { launchConfetti } from '../confetti';
 import { count, h, setChildren } from '../dom';
@@ -83,6 +85,8 @@ export async function renderReview(root: HTMLElement, mode: ReviewMode = 'normal
   let busy = false;
   let answeredThisSession = 0;
   let justShownCardId: string | null = null;
+  /** True between saving an answer and showing the next card. */
+  let justAnswered = false;
 
   // Typed answers: what has to be typed for the current card (null = not a typing card),
   // the text boxes, and how the typed answers compared (null = nothing was typed).
@@ -131,7 +135,18 @@ export async function renderReview(root: HTMLElement, mode: ReviewMode = 'normal
         h('button', { class: 'button small quiet', onclick: () => navigate('home') }, 'Done'),
         undoButton,
       ),
-      h('div', { class: 'review-header-side' }, timer, counts),
+      h(
+        'div',
+        { class: 'review-header-side' },
+        timer,
+        counts,
+        // The capture log's "+" lives up here during a session, clear of the answer buttons.
+        h(
+          'button',
+          { class: 'button small review-add', 'aria-label': 'Add to your capture log', onclick: () => openCapture() },
+          '+',
+        ),
+      ),
     ),
     progressBar,
     body,
@@ -166,8 +181,9 @@ export async function renderReview(root: HTMLElement, mode: ReviewMode = 'normal
     progressBar.setAttribute('aria-valuenow', String(done));
   }
 
-  function showToast(text: string): void {
+  function showToast(text: string, celebration = false): void {
     toast.textContent = text;
+    toast.classList.toggle('is-celebration', celebration);
     toast.hidden = false;
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(hideToast, 9000);
@@ -176,6 +192,22 @@ export async function renderReview(root: HTMLElement, mode: ReviewMode = 'normal
   function hideToast(): void {
     window.clearTimeout(toastTimer);
     toast.hidden = true;
+  }
+
+  /** Confetti and a chime when the streak reaches 7, 30, 100 or 365 days. */
+  function celebrateStreak(streak: Streak): void {
+    const days = milestoneReached(streak);
+    if (days === null) return;
+    const messages: Record<number, string> = {
+      7: '7 days in a row! A full week of Spanish.',
+      30: '30 days in a row! A whole month, and a real habit.',
+      100: '100 days in a row! That is remarkable.',
+      365: '365 days in a row! A full year of Spanish, every single day.',
+    };
+    showToast(messages[days] ?? `${days} days in a row!`, true);
+    playSound('celebrate');
+    stopConfetti?.();
+    stopConfetti = launchConfetti();
   }
 
   // ----- The Quick 5 countdown -----
@@ -214,6 +246,9 @@ export async function renderReview(root: HTMLElement, mode: ReviewMode = 'normal
     // Re-read from the database each time, so the counts are right even if
     // the app was left open overnight in the middle of a session.
     const today = await loadToday(new Date());
+    // The first answer of the day is the one that makes the streak a day longer.
+    if (justAnswered && today.reviewsToday === 1) celebrateStreak(today.streak);
+    justAnswered = false;
     const everything = summarize(today.cards, today.queueOptions);
     const options: QueueOptions = mode === 'quick' ? { ...today.queueOptions, reviewsOnly: true } : today.queueOptions;
     const summary = mode === 'quick' ? summarize(today.cards, options) : everything;
@@ -404,6 +439,7 @@ export async function renderReview(root: HTMLElement, mode: ReviewMode = 'normal
 
       undoSteps.push({ reviewId, cardId: item.card.id, direction: item.direction, previous: rated.previous });
       answeredThisSession++;
+      justAnswered = true;
       justShownCardId = item.card.id;
       if (rated.becameLeech) {
         showToast(
@@ -449,7 +485,9 @@ export async function renderReview(root: HTMLElement, mode: ReviewMode = 'normal
 
   // Keyboard shortcuts, handy when testing on a computer: Space/Enter = show answer, 1–4 = rate, U = undo.
   const onKey = (event: KeyboardEvent) => {
-    if (event.target instanceof HTMLInputElement) return; // typing an answer, not giving a command
+    // Typing (an answer, or a note in the capture log) is not giving a command.
+    const typing = event.target instanceof HTMLElement && event.target.closest('input, textarea, select') !== null;
+    if (typing || document.querySelector('dialog[open]')) return;
     if (event.key === ' ' || event.key === 'Enter') {
       if (current && !revealedAt) {
         event.preventDefault();

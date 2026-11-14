@@ -51,6 +51,33 @@ export const SPRINT_NORMAL_SHARE = 0.4;
 /** Speech speed for the "slow" setting (1 = the voice's normal speed). */
 export const SLOW_SPEECH_RATE = 0.7;
 
+/** Streak lengths (in days) that are celebrated with confetti. */
+export const STREAK_MILESTONES = [7, 30, 100, 365];
+
+/**
+ * One missed day is forgiven by a "streak freeze", but only if no freeze
+ * was used in the days before: one freeze per this many days.
+ */
+export const STREAK_FREEZE_EVERY_DAYS = 7;
+
+/** The daily goal when it is set to "a number of reviews". */
+export const DEFAULT_GOAL_REVIEWS = 20;
+
+/** On the Stats screen, a review card counts as "mature" once its interval reaches this many days. */
+export const MATURE_INTERVAL_DAYS = 21;
+
+/** Strengths and weaknesses ignore any tag or card type with fewer reviews than this. */
+export const MIN_REVIEWS_FOR_AREA = 10;
+
+/** How many days the strengths and weaknesses look back over. */
+export const AREA_WINDOW_DAYS = 30;
+
+/** How many days the weekly report for Claude covers. */
+export const REPORT_DAYS = 7;
+
+/** Time spent on a single card is counted up to this many seconds (so a phone left lying around doesn't skew the average). */
+export const MAX_SECONDS_PER_CARD = 60;
+
 /** Written into backup files so the app can recognise its own backups. */
 export const APP_ID = 'spanish-cards';
 
@@ -61,5 +88,9 @@ export const APP_ID = 'spanish-cards';
  *   2 = cards gained "paused", "leech", "flag" and "editedAt"; settings gained "soundsOn"
  *   3 = cards gained a second direction ("production"), "introducedAt" and "recognitionPaused";
  *       reviews gained "direction" and the typed answer; sprints were added; more settings
+ *   4 = the capture log and the list of study days (for the streak) were added; goal settings
  */
-export const BACKUP_FORMAT_VERSION = 3;
+export const BACKUP_FORMAT_VERSION = 4;
+
+/** The version of the layout of the weekly report file made for Claude. */
+export const REPORT_FORMAT_VERSION = 1;

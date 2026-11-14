@@ -2,12 +2,14 @@
 import { hasTwoDirections } from '../study/directions';
 import { findSprintByName } from '../study/sprints';
 import type { CardContent, Sprint, StoredCard } from '../types';
-import { parseCardFile, planImport, type SprintInFile } from './cardFile';
+import { applyRewrite, parseCardFile, planImport, type SprintInFile } from './cardFile';
 import { newStoredCard } from './cardUpgrade';
-import { addImportedCards, getAllCards, getSprints } from './db';
+import { getAllCards, getSprints, saveImport } from './db';
 
 export interface ImportResult {
   added: number;
+  /** Existing cards (flagged for Claude, or leeches) that the file rewrote. */
+  updated: number;
   duplicates: number;
   /** One line per card in the file that couldn't be used. */
   problems: string[];
@@ -17,10 +19,10 @@ export interface ImportResult {
 
 /** Throws a FileProblem (with a message fit to show the user) if the file can't be read at all. */
 export async function importCardFile(text: string): Promise<ImportResult> {
-  const { cards, recognitionOnly, sprint: sprintInFile, problems } = parseCardFile(text);
+  const { cards, recognitionOnly, sprint: sprintInFile, problems: fileProblems } = parseCardFile(text);
 
   const [existing, sprints] = await Promise.all([getAllCards(), getSprints()]);
-  const { toAdd, duplicates } = planImport(cards, existing);
+  const { toAdd, toUpdate, duplicates, problems: planProblems } = planImport(cards, existing);
 
   const now = new Date();
   const firstPosition = existing.reduce((highest, card) => Math.max(highest, card.position), 0) + 1;
@@ -32,13 +34,20 @@ export async function importCardFile(text: string): Promise<ImportResult> {
     }),
   );
 
+  // Rewrites of flagged cards and leeches: new text, same progress.
+  const existingById = new Map(existing.map((card) => [card.id, card]));
+  const updatedCards: StoredCard[] = toUpdate.map((card) =>
+    applyRewrite(existingById.get(card.id)!, sprintInFile ? withTag(card, sprintInFile.tag) : card, now),
+  );
+
   const sprint = sprintInFile ? sprintToSave(sprintInFile, sprints, now) : null;
-  await addImportedCards(newCards, sprint?.sprint ?? null);
+  await saveImport(newCards, updatedCards, sprint?.sprint ?? null);
 
   return {
     added: newCards.length,
+    updated: updatedCards.length,
     duplicates,
-    problems,
+    problems: [...fileProblems, ...planProblems],
     sprint: sprint && { name: sprint.sprint.name, endDate: sprint.sprint.endDate, isNew: sprint.isNew },
   };
 }

@@ -5,31 +5,14 @@
 import { SPRINT_NORMAL_SHARE } from '../config';
 import type { Sprint, StoredCard, Variety } from '../types';
 import { simplify } from './text';
-import { startOfStudyDay } from './time';
+import { daysBetween, studyDate } from './dates';
 
-/** Today's date as "2026-11-21". (Like everything else, "today" starts at 4 am.) */
-export function studyDate(now: Date): string {
-  const day = startOfStudyDay(now);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
-}
-
-/** Is this text a real date written like "2026-11-21"? */
-export function isDate(text: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
-  if (!match) return false;
-  const [year, month, day] = match.slice(1).map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-}
+// These two started life in this file; other files still import them from here.
+export { isDate, studyDate } from './dates';
 
 /** How many days the sprint still has after today. 0 = today is its last day. Negative = it is over. */
 export function daysLeft(sprint: Sprint, now: Date): number {
-  const asDayNumber = (date: string) => {
-    const [year, month, day] = date.split('-').map(Number);
-    return Math.round(Date.UTC(year, month - 1, day) / 86_400_000);
-  };
-  return asDayNumber(sprint.endDate) - asDayNumber(studyDate(now));
+  return daysBetween(studyDate(now), sprint.endDate);
 }
 
 /** A sprint runs up to and including its end date, and then switches itself off. */

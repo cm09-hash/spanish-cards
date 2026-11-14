@@ -16,8 +16,13 @@ import {
   replaceEverything,
   resetCardProgress,
   saveReview,
+  deleteCapture,
   deleteSprint,
+  getCaptures,
   getSprints,
+  getStudyDays,
+  markCaptures,
+  saveCapture,
   saveSprint,
   setCardFlag,
   setCardPaused,
@@ -25,15 +30,18 @@ import {
   undoReview,
 } from '../src/data/db';
 import { importCardFile } from '../src/data/importCards';
+import { studyDate } from '../src/study/dates';
 import { itemOf } from '../src/study/directions';
 import { rateCard } from '../src/study/rate';
 import { initScheduler, previewRatings } from '../src/study/scheduler';
-import type { Direction, Rating, Sprint, StoredCard } from '../src/types';
+import type { Capture, Direction, Rating, Sprint, StoredCard } from '../src/types';
 import { makeCard, makeProduction } from './helpers';
 
 beforeAll(() => initScheduler());
 beforeEach(async () => {
-  await Promise.all([db.cards.clear(), db.reviews.clear(), db.sprints.clear(), db.settings.clear()]);
+  await Promise.all(
+    [db.cards, db.reviews, db.sprints, db.captures, db.studyDays, db.settings].map((table) => table.clear()),
+  );
 });
 
 let clock = new Date('2026-02-01T09:00:00.000Z').getTime();
@@ -385,6 +393,186 @@ describe('importing a file', () => {
   });
 });
 
+describe('study days (what the streak is worked out from)', () => {
+  it('are noted when a card is reviewed, and counted', async () => {
+    await addCards([makeCard('a'), makeCard('b', {}, 2)]);
+    const first = await review('a', 3);
+    await review('b', 3);
+    expect(await getStudyDays()).toEqual([{ date: studyDate(new Date(first.rated.review.timestamp)), reviews: 2 }]);
+  });
+
+  it('go back down when a review is undone, and disappear with the last one', async () => {
+    await addCards([makeCard('a'), makeCard('b', {}, 2)]);
+    const first = await review('a', 3);
+    const second = await review('b', 3);
+
+    await undoReview(second.reviewId, second.previous);
+    expect((await getStudyDays()).map((day) => day.reviews)).toEqual([1]);
+    await undoReview(first.reviewId, first.previous);
+    expect(await getStudyDays()).toEqual([]); // nothing was studied that day after all
+  });
+
+  it('are kept when a card is deleted, so deleting a card can never break a streak', async () => {
+    await addCards([makeCard('a')]);
+    await review('a', 3);
+    const before = await getStudyDays();
+
+    await deleteCard('a');
+    expect(await db.reviews.count()).toBe(0);
+    expect(await getStudyDays()).toEqual(before);
+  });
+
+  it('are left alone if saving a review fails', async () => {
+    const ghost = makeCard('ghost');
+    const outcome = previewRatings(ghost.scheduling, new Date(clock))[2];
+    const rated = rateCard(itemOf(ghost, 'recognition')!, outcome, new Date(clock), 0);
+    await expect(saveReview(rated.review, rated.changes)).rejects.toThrow();
+    expect(await getStudyDays()).toEqual([]);
+  });
+});
+
+describe('the capture log', () => {
+  const entry = (id: string, createdAt: string, other: Partial<Capture> = {}): Capture => ({
+    id,
+    text: `note ${id}`,
+    type: 'other',
+    context: '',
+    createdAt,
+    status: 'waiting',
+    sentAt: null,
+    ...other,
+  });
+
+  it('lists entries newest first', async () => {
+    await saveCapture(entry('old', '2026-11-01T10:00:00.000Z'));
+    await saveCapture(entry('new', '2026-11-05T10:00:00.000Z'));
+    await saveCapture(entry('middle', '2026-11-03T10:00:00.000Z'));
+    expect((await getCaptures()).map((capture) => capture.id)).toEqual(['new', 'middle', 'old']);
+  });
+
+  it('edits an entry in place and deletes one', async () => {
+    await saveCapture(entry('a', '2026-11-01T10:00:00.000Z'));
+    await saveCapture(
+      entry('a', '2026-11-01T10:00:00.000Z', { text: 'how do I say “to-go box”?', type: 'vocab', context: 'at lunch' }),
+    );
+    expect(await getCaptures()).toMatchObject([
+      { id: 'a', text: 'how do I say “to-go box”?', type: 'vocab', context: 'at lunch' },
+    ]);
+
+    await deleteCapture('a');
+    expect(await getCaptures()).toEqual([]);
+  });
+
+  it('marks entries as sent to Claude, and back to waiting', async () => {
+    await saveCapture(entry('a', '2026-11-01T10:00:00.000Z'));
+    await saveCapture(entry('b', '2026-11-02T10:00:00.000Z'));
+    await saveCapture(entry('c', '2026-11-03T10:00:00.000Z'));
+
+    await markCaptures(['a', 'b', 'no-such-entry'], '2026-11-07T09:00:00.000Z');
+    const byId = async () => Object.fromEntries((await getCaptures()).map((capture) => [capture.id, capture]));
+    expect(await byId()).toMatchObject({
+      a: { status: 'sent', sentAt: '2026-11-07T09:00:00.000Z' },
+      b: { status: 'sent', sentAt: '2026-11-07T09:00:00.000Z' },
+      c: { status: 'waiting', sentAt: null },
+    });
+
+    await markCaptures(['a'], null);
+    expect((await byId()).a).toMatchObject({ status: 'waiting', sentAt: null });
+  });
+});
+
+describe('importing rewritten cards', () => {
+  const flag = { reason: 'translation seems wrong', flaggedAt: '2026-11-01T10:00:00.000Z', by: 'you' } as const;
+  const file = (cards: object[], extra: object = {}) => JSON.stringify({ cards, ...extra });
+
+  it('updates a flagged card in place: new text, same progress and history, flag cleared', async () => {
+    await addCards([
+      makeCard('reto', {}, 1, { front: 'el reto', back: 'the challange', production: makeProduction('reto') }),
+    ]);
+    await review('reto', 3);
+    await review('reto', 3, 'production');
+    await setCardFlag('reto', flag);
+    const before = (await getCard('reto'))!;
+
+    const result = await importCardFile(
+      file([
+        {
+          id: 'reto',
+          type: 'vocab',
+          front: 'el reto',
+          back: 'the challenge',
+          note: 'Es un reto. — It is a challenge.',
+          tags: ['nouns'],
+        },
+        { id: 'mesa', type: 'vocab', front: 'la mesa', back: 'the table' },
+      ]),
+    );
+    expect(result).toMatchObject({ added: 1, updated: 1, duplicates: 0, problems: [] });
+
+    const after = (await getCard('reto'))!;
+    expect(after).toMatchObject({
+      back: 'the challenge',
+      note: 'Es un reto. — It is a challenge.',
+      tags: ['nouns'],
+      flag: null,
+    });
+    expect(after.editedAt).not.toBeNull();
+    // Progress in both directions, and everything else, is exactly as it was.
+    expect(after.scheduling).toEqual(before.scheduling);
+    expect(after.production).toEqual(before.production);
+    expect(after).toMatchObject({
+      introducedAt: before.introducedAt,
+      position: before.position,
+      addedAt: before.addedAt,
+    });
+    expect(await getReviewsForCard('reto')).toHaveLength(2);
+  });
+
+  it('updates a leech and stops counting it as one', async () => {
+    const worn = { state: 2, scheduleStatus: 'review', scheduledDays: 3, lapses: LEECH_THRESHOLD, reps: 20 } as const;
+    await addCards([makeCard('por', worn, 1, { leech: true, flag: { ...flag, by: 'leech' } })]);
+
+    await importCardFile(file([{ id: 'por', type: 'vocab', front: 'por (duration)', back: 'for (how long)' }]));
+    expect(await getCard('por')).toMatchObject({
+      front: 'por (duration)',
+      leech: false,
+      flag: null,
+      scheduling: { lapses: LEECH_THRESHOLD, reps: 20 }, // its history of being forgotten is not erased
+    });
+  });
+
+  it('never touches a card that was not flagged', async () => {
+    await addCards([makeCard('casa', {}, 1, { front: 'la casa', back: 'the house' })]);
+    const before = await getCard('casa');
+
+    const result = await importCardFile(
+      file([{ id: 'casa', type: 'vocab', front: 'la casa', back: 'SOMETHING ELSE' }]),
+    );
+    expect(result).toMatchObject({ added: 0, updated: 0, duplicates: 1 });
+    expect(await getCard('casa')).toEqual(before);
+  });
+
+  it('reports a rewrite that changes the type, and leaves that card as it was', async () => {
+    await addCards([makeCard('reto', {}, 1, { flag })]);
+    const before = await getCard('reto');
+
+    const result = await importCardFile(file([{ id: 'reto', type: 'cloze', front: 'Es un {{c1::reto}}.' }]));
+    expect(result).toMatchObject({ added: 0, updated: 0 });
+    expect(result.problems[0]).toContain('has to keep its type');
+    expect(await getCard('reto')).toEqual(before);
+  });
+
+  it('gives a rewritten card the sprint tag when the file has a sprint', async () => {
+    await addCards([makeCard('reto', {}, 1, { tags: ['nouns'], flag })]);
+    await importCardFile(
+      file([{ id: 'reto', type: 'vocab', front: 'el reto', back: 'the challenge' }], {
+        sprint: { name: 'Trip', endDate: '2026-12-10', tag: 'madrid' },
+      }),
+    );
+    expect((await getCard('reto'))!.tags).toEqual(['nouns', 'madrid']);
+  });
+});
+
 describe('backup and restore through the database', () => {
   it('brings back everything, including paused, flagged, leech and edited cards', async () => {
     const cards: StoredCard[] = [
@@ -406,6 +594,15 @@ describe('backup and restore through the database', () => {
       finishedNoticeSeen: false,
     });
     await review('b', 1);
+    await saveCapture({
+      id: 'c1',
+      text: 'how do I say “to-go box”?',
+      type: 'vocab',
+      context: 'at lunch',
+      createdAt: new Date(clock).toISOString(),
+      status: 'waiting',
+      sentAt: null,
+    });
     await setCardPaused('b', true);
     await setCardFlag('c', { reason: 'typo', flaggedAt: new Date(clock).toISOString(), by: 'you' });
     await editCard('c', { front: 'edited', back: 'card', tags: ['t'], note: 'n' }, new Date(clock));
@@ -416,11 +613,16 @@ describe('backup and restore through the database', () => {
     await deleteCard('a');
     await setCardPaused('b', false);
     await deleteSprint('s1');
+    await deleteCapture('c1');
+    await db.studyDays.clear();
     await replaceEverything(parseBackup(file, await getSettings()));
 
     const restored = await readEverything();
     expect(restored.cards).toEqual(saved.cards);
     expect(restored.sprints).toEqual(saved.sprints);
+    expect(restored.captures).toEqual(saved.captures);
+    expect(restored.studyDays).toEqual(saved.studyDays);
+    expect(saved.studyDays).toHaveLength(1);
     expect(restored.reviews.map(({ id: _id, ...rest }) => rest)).toEqual(
       saved.reviews.map(({ id: _id, ...rest }) => rest),
     );

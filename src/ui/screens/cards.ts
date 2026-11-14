@@ -10,7 +10,7 @@ import {
   type StatusFilter,
 } from '../../study/cardFilter';
 import { CARD_TYPES, type CardType, type StoredCard } from '../../types';
-import type { Cleanup } from '../app';
+import { navigate, type Cleanup } from '../app';
 import { cardBadges } from '../badges';
 import { count, h, setChildren } from '../dom';
 
@@ -28,6 +28,14 @@ const STATUS_NAMES: Record<StatusFilter, string> = {
 
 // Remembered while the app is open, so coming back from a card puts you where you were.
 const remembered = { filter: { ...NO_FILTER } as CardFilter, shown: PAGE_SIZE, scrollY: 0 };
+
+/** Opens the Cards screen showing only one type of card or one tag (used by the Stats screen). */
+export function showCardsWith(only: { type: CardType } | { tag: string }): void {
+  remembered.filter = { ...NO_FILTER, ...only };
+  remembered.shown = PAGE_SIZE;
+  remembered.scrollY = 0;
+  navigate('cards');
+}
 
 export async function renderCards(root: HTMLElement): Promise<Cleanup | void> {
   const cards = await getAllCards();
