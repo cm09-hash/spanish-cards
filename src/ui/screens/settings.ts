@@ -1,4 +1,4 @@
-/** Settings: new cards per day, sounds, Spanish audio, typing, plus version information. */
+/** Settings: new cards per day, daily goal, sounds, Spanish audio, typing, plus version information. */
 import { DESIRED_RETENTION, FSRS_VERSION } from '../../config';
 import { getSettings, updateSettings } from '../../data/db';
 import { checkForUpdate, onUpdateReady } from '../../pwa';
@@ -34,6 +34,67 @@ export async function renderSettings(root: HTMLElement): Promise<Cleanup> {
   }
   input.addEventListener('change', () => void setNewCardsPerDay(input.valueAsNumber));
   const step = (amount: number) => () => void setNewCardsPerDay((input.valueAsNumber || 0) + amount);
+
+  // ----- Daily goal -----
+
+  const goalNumber = h('input', {
+    id: 'goal-reviews',
+    class: 'stepper-value',
+    type: 'number',
+    inputmode: 'numeric',
+    min: 1,
+    max: MAX_NEW_CARDS,
+    value: settings.goalReviews,
+  });
+  const goalStepper = h(
+    'div',
+    { class: 'stepper', hidden: settings.goalKind !== 'reviews' },
+    h(
+      'button',
+      {
+        class: 'button stepper-button',
+        'aria-label': 'One fewer review',
+        onclick: () => void setGoalReviews(goalNumber.valueAsNumber - 1),
+      },
+      '−',
+    ),
+    goalNumber,
+    h(
+      'button',
+      {
+        class: 'button stepper-button',
+        'aria-label': 'One more review',
+        onclick: () => void setGoalReviews(goalNumber.valueAsNumber + 1),
+      },
+      '+',
+    ),
+    h('span', { class: 'setting-label' }, 'reviews a day'),
+  );
+  async function setGoalReviews(value: number): Promise<void> {
+    const cleaned = Math.min(MAX_NEW_CARDS, Math.max(1, Math.floor(Number.isFinite(value) ? value : 1)));
+    goalNumber.value = String(cleaned);
+    await updateSettings({ goalReviews: cleaned });
+  }
+  goalNumber.addEventListener('change', () => void setGoalReviews(goalNumber.valueAsNumber));
+
+  const goalChoices = (
+    [
+      ['all', 'Finish everything'],
+      ['reviews', 'A number of reviews'],
+    ] as const
+  ).map(([kind, label]) => {
+    const chip = h(
+      'button',
+      { class: 'chip', type: 'button', 'aria-pressed': String(settings.goalKind === kind) },
+      label,
+    );
+    chip.addEventListener('click', async () => {
+      for (const other of goalChoices) other.setAttribute('aria-pressed', String(other === chip));
+      goalStepper.hidden = kind !== 'reviews';
+      await updateSettings({ goalKind: kind });
+    });
+    return chip;
+  });
 
   // ----- Sounds -----
 
@@ -150,6 +211,18 @@ export async function renderSettings(root: HTMLElement): Promise<Cleanup> {
         h('button', { class: 'button stepper-button', 'aria-label': 'One more', onclick: step(1) }, '+'),
         savedNote,
       ),
+    ),
+    h(
+      'section',
+      { class: 'panel' },
+      h('h2', null, 'Daily goal'),
+      h(
+        'p',
+        null,
+        'What counts as “done for today” in the ring on the Home screen. “Finish everything” means all the cards that are due plus the day’s new cards. Your streak only needs one review a day, whichever you choose.',
+      ),
+      h('div', { class: 'chips', role: 'group', 'aria-label': 'Daily goal' }, goalChoices),
+      goalStepper,
     ),
     h(
       'section',

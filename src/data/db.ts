@@ -3,13 +3,25 @@
  * Every read and write of saved data goes through the functions in this file.
  */
 import Dexie, { type EntityTable } from 'dexie';
-import { DEFAULT_NEW_CARDS_PER_DAY } from '../config';
+import { DEFAULT_GOAL_REVIEWS, DEFAULT_NEW_CARDS_PER_DAY } from '../config';
+import { studyDate } from '../study/dates';
 import { blankSchedulingState, itemOf, schedulingId } from '../study/directions';
-import type { CardContent, CardFlag, Direction, ReviewRecord, Settings, Sprint, StoredCard } from '../types';
+import type {
+  Capture,
+  CardContent,
+  CardFlag,
+  Direction,
+  ReviewRecord,
+  Settings,
+  Sprint,
+  StoredCard,
+  StudyDay,
+} from '../types';
 import {
   addMissingReviewFields,
   addRound1Fields,
   addRound2Fields,
+  studyDaysFromReviews,
   type CardFromAnyVersion,
   type ReviewFromAnyVersion,
 } from './cardUpgrade';
@@ -24,6 +36,8 @@ export const db = new Dexie('spanish-cards') as Dexie & {
   reviews: EntityTable<ReviewRecord, 'id'>;
   settings: EntityTable<SettingRow, 'key'>;
   sprints: EntityTable<Sprint, 'id'>;
+  captures: EntityTable<Capture, 'id'>;
+  studyDays: EntityTable<StudyDay, 'date'>;
 };
 
 // The text after each table name lists what the table can be looked up by.
@@ -79,6 +93,20 @@ db.version(3)
       });
   });
 
+// Version 4 (Round 3): the capture log, and the list of days studied (for the streak).
+//  - Two new tables. Cards, reviews, sprints and settings are not touched at all.
+//  - The list of study days starts out filled in from the existing review history,
+//    so a streak that is already running carries straight on.
+db.version(4)
+  .stores({ captures: 'id', studyDays: 'date' })
+  .upgrade(async (transaction) => {
+    const timestamps: { timestamp: string }[] = [];
+    await transaction
+      .table<ReviewRecord, number>('reviews')
+      .each((review) => void timestamps.push({ timestamp: review.timestamp }));
+    await transaction.table<StudyDay, string>('studyDays').bulkPut(studyDaysFromReviews(timestamps));
+  });
+
 // ---------- Cards ----------
 
 export function getAllCards(): Promise<StoredCard[]> {
@@ -97,10 +125,14 @@ export async function addCards(cards: StoredCard[]): Promise<void> {
   await db.cards.bulkAdd(cards);
 }
 
-/** Adds imported cards and, if the file named one, creates or updates its sprint. All-or-nothing. */
-export async function addImportedCards(cards: StoredCard[], sprint: Sprint | null): Promise<void> {
+/**
+ * Saves an import: the new cards, the existing cards the file rewrote, and (if the file
+ * named one) its sprint. All-or-nothing.
+ */
+export async function saveImport(added: StoredCard[], updated: StoredCard[], sprint: Sprint | null): Promise<void> {
   await db.transaction('rw', db.cards, db.sprints, async () => {
-    await db.cards.bulkAdd(cards);
+    await db.cards.bulkAdd(added);
+    await db.cards.bulkPut(updated);
     if (sprint) await db.sprints.put(sprint);
   });
 }
@@ -196,8 +228,12 @@ export async function deleteCard(id: string): Promise<void> {
  * Returns the id of the new history entry (needed to undo it).
  */
 export function saveReview(review: ReviewRecord, changes: Partial<StoredCard>): Promise<number> {
-  return db.transaction('rw', db.cards, db.reviews, async () => {
+  return db.transaction('rw', db.cards, db.reviews, db.studyDays, async () => {
     await changeCard(review.cardId, changes);
+    // Note that this day was studied (the streak is worked out from these notes).
+    const date = studyDate(new Date(review.timestamp));
+    const day = await db.studyDays.get(date);
+    await db.studyDays.put({ date, reviews: (day?.reviews ?? 0) + 1 });
     return (await db.reviews.add(review)) as number;
   });
 }
@@ -208,7 +244,7 @@ export function saveReview(review: ReviewRecord, changes: Partial<StoredCard>): 
  * All-or-nothing: if anything is not as expected, nothing at all is changed and an error is thrown.
  */
 export async function undoReview(reviewId: number, previous: Partial<StoredCard>): Promise<void> {
-  await db.transaction('rw', db.cards, db.reviews, async () => {
+  await db.transaction('rw', db.cards, db.reviews, db.studyDays, async () => {
     const review = await db.reviews.get(reviewId);
     if (!review) throw new Error('That review has already been removed.');
 
@@ -227,6 +263,12 @@ export async function undoReview(reviewId: number, previous: Partial<StoredCard>
 
     await db.cards.put({ ...card, ...previous });
     await db.reviews.delete(reviewId);
+
+    // Take the review off its day's count too. A day left with none is no longer a study day.
+    const date = studyDate(new Date(review.timestamp));
+    const day = await db.studyDays.get(date);
+    if (day && day.reviews > 1) await db.studyDays.put({ date, reviews: day.reviews - 1 });
+    else await db.studyDays.delete(date);
   });
 }
 
@@ -238,6 +280,16 @@ export function getReviewsSince(since: Date): Promise<ReviewRecord[]> {
 /** The full history of one card, oldest first. */
 export function getReviewsForCard(cardId: string): Promise<ReviewRecord[]> {
   return db.reviews.where('cardId').equals(cardId).sortBy('timestamp');
+}
+
+/** Every review ever made, oldest first. (For the Stats screen.) */
+export function getAllReviews(): Promise<ReviewRecord[]> {
+  return db.reviews.orderBy('id').toArray();
+}
+
+/** The days on which at least one card was reviewed, oldest first. */
+export function getStudyDays(): Promise<StudyDay[]> {
+  return db.studyDays.orderBy('date').toArray();
 }
 
 export function countReviews(): Promise<number> {
@@ -260,16 +312,45 @@ export async function deleteSprint(id: string): Promise<void> {
   await db.sprints.delete(id);
 }
 
+// ---------- Capture log ----------
+
+/** Every entry in the capture log, newest first. */
+export async function getCaptures(): Promise<Capture[]> {
+  const captures = await db.captures.toArray();
+  return captures.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Adds an entry, or replaces the one with the same id. */
+export async function saveCapture(capture: Capture): Promise<void> {
+  await db.captures.put(capture);
+}
+
+export async function deleteCapture(id: string): Promise<void> {
+  await db.captures.delete(id);
+}
+
+/** Marks entries as "sent to Claude" (or back to "waiting", if `sentAt` is null). All-or-nothing. */
+export async function markCaptures(ids: string[], sentAt: string | null): Promise<void> {
+  await db.transaction('rw', db.captures, async () => {
+    for (const capture of await db.captures.bulkGet(ids)) {
+      if (capture) await db.captures.put({ ...capture, status: sentAt ? 'sent' : 'waiting', sentAt });
+    }
+  });
+}
+
 // ---------- Settings ----------
 
 const DEFAULT_SETTINGS: Settings = {
   newCardsPerDay: DEFAULT_NEW_CARDS_PER_DAY,
+  goalKind: 'all',
+  goalReviews: DEFAULT_GOAL_REVIEWS,
   soundsOn: true,
   autoPlayAudio: true,
   speechSpeed: 'normal',
   typeAnswers: true,
   voiceTipSeen: false,
   lastBackupAt: null,
+  lastReportAt: null,
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -289,15 +370,21 @@ export interface EverythingSaved {
   cards: StoredCard[];
   reviews: ReviewRecord[];
   sprints: Sprint[];
+  captures: Capture[];
+  studyDays: StudyDay[];
   settings: Settings;
 }
 
-/** Reads all cards, the full review history, the sprints and the settings in one consistent snapshot. */
+const ALL_TABLES = () => [db.cards, db.reviews, db.sprints, db.captures, db.studyDays, db.settings];
+
+/** Reads everything that is saved, in one consistent snapshot. */
 export function readEverything(): Promise<EverythingSaved> {
-  return db.transaction('r', db.cards, db.reviews, db.sprints, db.settings, async () => ({
+  return db.transaction('r', ALL_TABLES(), async () => ({
     cards: await db.cards.toArray(),
     reviews: await db.reviews.orderBy('id').toArray(),
     sprints: await db.sprints.toArray(),
+    captures: await db.captures.toArray(),
+    studyDays: await db.studyDays.orderBy('date').toArray(),
     settings: await getSettings(),
   }));
 }
@@ -307,11 +394,13 @@ export function readEverything(): Promise<EverythingSaved> {
  * if anything goes wrong part-way, the data that was there before is kept.
  */
 export async function replaceEverything(data: EverythingSaved): Promise<void> {
-  await db.transaction('rw', db.cards, db.reviews, db.sprints, db.settings, async () => {
-    await Promise.all([db.cards.clear(), db.reviews.clear(), db.sprints.clear(), db.settings.clear()]);
+  await db.transaction('rw', ALL_TABLES(), async () => {
+    await Promise.all(ALL_TABLES().map((table) => table.clear()));
     await db.cards.bulkAdd(data.cards);
     await db.reviews.bulkAdd(data.reviews);
     await db.sprints.bulkAdd(data.sprints);
+    await db.captures.bulkAdd(data.captures);
+    await db.studyDays.bulkAdd(data.studyDays);
     await updateSettings(data.settings);
   });
 }

@@ -2,7 +2,7 @@
  * Reading and checking a card import file (the JSON that Claude generates).
  * Pure logic: nothing here touches the database. See README.md for the format.
  */
-import { CARD_TYPES, type CardContent, type CardType, type Variety } from '../types';
+import { CARD_TYPES, CONTENT_FIELDS, type CardContent, type CardType, type StoredCard, type Variety } from '../types';
 import { hasCloze } from '../study/cloze';
 import { checkTable } from '../study/conjugation';
 import { hasTwoDirections } from '../study/directions';
@@ -178,33 +178,96 @@ function isCardType(value: string): value is CardType {
   return (CARD_TYPES as readonly string[]).includes(value);
 }
 
+/** Just what a card says, without its progress, with its fields always in the same order. */
+export function contentOf(card: CardContent): CardContent {
+  const content: Partial<Record<keyof CardContent, unknown>> = {};
+  for (const field of CONTENT_FIELDS) {
+    if (card[field] !== undefined) content[field] = card[field];
+  }
+  return content as CardContent;
+}
+
+/** Do two cards say exactly the same thing? (The order of their tags doesn't matter.) */
+function sameContent(a: CardContent, b: CardContent): boolean {
+  const comparable = (card: CardContent) => JSON.stringify({ ...contentOf(card), tags: [...card.tags].sort() });
+  return comparable(a) === comparable(b);
+}
+
+/** What the import needs to know about a card that is already in the app. */
+type ExistingCard = CardContent & Partial<Pick<StoredCard, 'flag' | 'leech'>>;
+
 export interface ImportPlan {
+  /** Cards that are new to the app. */
   toAdd: CardContent[];
+  /** Rewritten versions of cards that were flagged for Claude or were leeches. */
+  toUpdate: CardContent[];
+  /** Cards that were skipped because the app already has them. */
   duplicates: number;
+  /** One plain-English line for each card that couldn't be used. */
+  problems: string[];
 }
 
 /**
- * Decides which incoming cards are really new. A card is a duplicate when
+ * Decides what to do with each incoming card.
+ *
+ * NEW cards are added. A card is not new, and is skipped as a duplicate, when
  *  - its id is already in use, or
  *  - a card of the same type already has the same front text
  *    (ignoring capital letters and extra spaces).
+ *
+ * The one exception is a REWRITE: if the id belongs to a card that is flagged for Claude
+ * or is a leech, and the incoming card says something different, the existing card is
+ * updated instead. Cards that aren't flagged are never changed by an import, so importing
+ * an old file again can't undo edits you made in the app.
  */
-export function planImport(incoming: CardContent[], existing: CardContent[]): ImportPlan {
-  const seenIds = new Set(existing.map((card) => card.id));
+export function planImport(incoming: CardContent[], existing: ExistingCard[]): ImportPlan {
+  const existingById = new Map(existing.map((card) => [card.id, card]));
+  const seenIds = new Set(existingById.keys());
   const seenFronts = new Set(existing.map(frontKey));
 
-  const toAdd: CardContent[] = [];
-  let duplicates = 0;
+  const plan: ImportPlan = { toAdd: [], toUpdate: [], duplicates: 0, problems: [] };
   for (const card of incoming) {
-    if (seenIds.has(card.id) || seenFronts.has(frontKey(card))) {
-      duplicates++;
-      continue;
+    const current = existingById.get(card.id);
+    const awaitingRewrite = current !== undefined && (current.flag != null || current.leech === true);
+
+    if (awaitingRewrite && !sameContent(card, current)) {
+      if (card.type !== current.type) {
+        plan.problems.push(
+          `Card "${card.id}" is a rewrite of a ${current.type} card, but it has been turned into a ${card.type} card. A rewrite has to keep its type. (To change the type, give the new card a new id.)`,
+        );
+      } else {
+        plan.toUpdate.push(card);
+      }
+      existingById.delete(card.id); // a second copy of it in the same file is just a duplicate
+    } else if (seenIds.has(card.id) || seenFronts.has(frontKey(card))) {
+      plan.duplicates++;
+    } else {
+      seenIds.add(card.id);
+      seenFronts.add(frontKey(card));
+      plan.toAdd.push(card);
     }
-    seenIds.add(card.id);
-    seenFronts.add(frontKey(card));
-    toAdd.push(card);
   }
-  return { toAdd, duplicates };
+  return plan;
+}
+
+/**
+ * An existing card with its text replaced by a rewritten version.
+ *  - Its progress, history, position and pauses are kept exactly as they are.
+ *  - Its flag is cleared and it stops being a leech: it has been dealt with.
+ *    (If it is forgotten again, it becomes a leech again.)
+ *  - Its tags are combined with the new ones, so a rewrite can't drop it out of a sprint by accident.
+ */
+export function applyRewrite(current: StoredCard, rewritten: CardContent, now: Date): StoredCard {
+  const progress: Record<string, unknown> = { ...current };
+  for (const field of CONTENT_FIELDS) delete progress[field];
+  return {
+    ...(progress as Omit<StoredCard, keyof CardContent>),
+    ...contentOf(rewritten),
+    tags: [...new Set([...current.tags, ...rewritten.tags])],
+    flag: null,
+    leech: false,
+    editedAt: now.toISOString(),
+  };
 }
 
 function frontKey(card: CardContent): string {

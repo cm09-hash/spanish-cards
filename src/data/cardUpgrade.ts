@@ -7,7 +7,8 @@
  */
 import { blankSchedulingState, hasTwoDirections, schedulingId } from '../study/directions';
 import { isLeechSchedule, leechFlag } from '../study/leech';
-import type { CardMarks, ReviewRecord, StoredCard } from '../types';
+import { studyDate } from '../study/dates';
+import type { CardMarks, ReviewRecord, StoredCard, StudyDay } from '../types';
 
 /** The fields that Round 1 added to cards (database version 2). */
 type Round1Fields = keyof CardMarks | 'editedAt';
@@ -91,6 +92,20 @@ export function firstReviewTimes(reviews: ReviewFromAnyVersion[]): Map<string, s
     if (known === undefined || review.timestamp < known) first.set(review.cardId, review.timestamp);
   }
   return first;
+}
+
+/**
+ * Round 3: the list of days studied, which the streak is worked out from.
+ * For data from before that list existed, it is rebuilt from the review history:
+ * one entry per day that has at least one review.
+ */
+export function studyDaysFromReviews(reviews: Pick<ReviewRecord, 'timestamp'>[]): StudyDay[] {
+  const counts = new Map<string, number>();
+  for (const review of reviews) {
+    const date = studyDate(new Date(review.timestamp));
+    counts.set(date, (counts.get(date) ?? 0) + 1);
+  }
+  return [...counts.keys()].sort().map((date) => ({ date, reviews: counts.get(date)! }));
 }
 
 /** A freshly imported card: nothing studied yet. */

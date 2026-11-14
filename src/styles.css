@@ -6,6 +6,7 @@
 
 :root {
   color-scheme: light dark;
+  --flame: #d9772b;
 
   --bg: #f6f4ef;
   --surface: #ffffff;
@@ -37,6 +38,8 @@
     --accent: #74c2ac;
     --on-accent: #0f1f1b;
     --shadow: none;
+
+    --flame: #f0994d;
 
     --again: #e58d83;
     --hard: #dcae58;
@@ -129,7 +132,8 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: calc(env(safe-area-inset-top) + 28px) max(20px, env(safe-area-inset-right)) 28px
+  /* (The extra room at the bottom keeps the floating + button from covering the last thing on the page.) */
+  padding: calc(env(safe-area-inset-top) + 28px) max(20px, env(safe-area-inset-right)) 92px
     max(20px, env(safe-area-inset-left));
 }
 
@@ -147,8 +151,8 @@ ul {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  padding: 6px max(8px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 6px)
+  grid-template-columns: repeat(6, 1fr);
+  padding: 6px max(4px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 6px)
     max(8px, env(safe-area-inset-left));
   background: var(--surface);
   border-top: 1px solid var(--border);
@@ -163,7 +167,7 @@ ul {
   padding: 6px 0 2px;
   border-radius: 12px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 550;
   text-decoration: none;
   touch-action: manipulation;
@@ -1462,6 +1466,525 @@ mark.is-extra {
   font-size: 12px;
 }
 
+/* ---------- Streak and daily goal (Home) ---------- */
+
+.today-panel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: transform 90ms ease;
+}
+
+.today-panel:active {
+  transform: scale(0.98);
+}
+
+.today-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.streak-line {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.goal-line {
+  color: var(--muted);
+}
+
+.freeze-line {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* A flame next to a number or a line of text */
+.with-flame {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.with-flame .icon {
+  flex-shrink: 0;
+  fill: currentColor;
+  stroke: none;
+  color: var(--muted);
+}
+
+.with-flame.is-lit .icon,
+.stat .with-flame .icon {
+  color: var(--flame);
+}
+
+/* The ring that fills up as the day's goal gets closer */
+.ring {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+}
+
+.ring-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ring-track,
+.ring-fill {
+  fill: none;
+  stroke-width: 7;
+}
+
+.ring-track {
+  stroke: var(--border);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dasharray 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ring-fill.is-full {
+  stroke: var(--good);
+}
+
+.ring-middle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Stats ---------- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-value.is-smaller {
+  font-size: 34px;
+}
+
+.stat-detail {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stat .with-flame .icon {
+  width: 28px;
+  height: 28px;
+}
+
+.stats-panel {
+  align-items: stretch;
+}
+
+.stats-panel h3,
+.panel h3 {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.chart {
+  margin: 0;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-grid {
+  stroke: var(--border);
+  stroke-dasharray: 2 4;
+}
+
+.chart-base {
+  stroke: var(--border);
+}
+
+.chart-bar {
+  fill: color-mix(in srgb, var(--accent) 55%, var(--surface));
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: grow-up 520ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.chart-bar.is-highlight {
+  fill: var(--accent);
+}
+
+.chart-value {
+  fill: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-area {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* The colours used for stages and directions in the charts */
+.tone-new {
+  background: var(--easy);
+}
+
+.tone-learning {
+  background: var(--hard);
+}
+
+.tone-young {
+  background: color-mix(in srgb, var(--good) 55%, var(--surface));
+}
+
+.tone-mature {
+  background: var(--good);
+}
+
+.tone-empty {
+  background: var(--border);
+}
+
+.stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stacked-bar {
+  display: flex;
+  gap: 2px;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.stacked-part {
+  min-width: 4px;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.legend strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+.meter-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meter-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 550;
+}
+
+.meter-label strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  animation: grow-across 620ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  transform-origin: left;
+}
+
+/* Strengths and weaknesses: each one is a button that opens its cards */
+.areas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.area {
+  --tone: var(--good);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 2px 10px;
+  align-items: baseline;
+  padding: 10px 14px;
+  border: 0;
+  border-left: 4px solid var(--tone);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone) 10%, var(--surface));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 90ms ease;
+}
+
+.area:active {
+  transform: scale(0.98);
+}
+
+.areas.is-weak .area {
+  --tone: var(--hard);
+}
+
+.area-kind {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.area-name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.area-rate {
+  color: var(--tone);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.area-detail {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.all-areas summary {
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.area-table {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.area-table th,
+.area-table td {
+  padding: 6px 4px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.area-table th:first-child {
+  text-align: left;
+}
+
+.area-table thead th {
+  border-top: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.area-table tbody th {
+  font-weight: 400;
+}
+
+/* A button that looks like a link */
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Capture log ---------- */
+
+/* The floating + button, above the tab bar on every screen */
+.fab {
+  position: fixed;
+  right: max(16px, calc(50% - 254px));
+  bottom: calc(env(safe-area-inset-bottom) + 78px);
+  z-index: 5;
+  width: 58px;
+  height: 58px;
+  padding: 0 0 4px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow:
+    0 2px 6px rgb(0 0 0 / 18%),
+    0 8px 22px rgb(0 0 0 / 16%);
+  font: 300 36px/1 var(--font-ui);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 90ms ease;
+}
+
+.fab:active {
+  transform: scale(0.9);
+}
+
+#app.is-full-height .fab {
+  display: none;
+}
+
+/* During a session the + sits in the top bar instead */
+.button.review-add {
+  width: 40px;
+  padding: 0 0 2px;
+  border-radius: 50%;
+  color: var(--accent);
+  font-size: 24px;
+  font-weight: 400;
+}
+
+/* The sheet for a new entry. It drops in from the top, so the phone's keyboard can never cover it. */
+.sheet {
+  width: min(calc(100% - 24px), 500px);
+  max-height: calc(100dvh - 24px);
+  margin: calc(env(safe-area-inset-top) + 12px) auto auto;
+  padding: 18px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 30%);
+  animation: drop-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sheet::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.sheet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A short message at the top of the screen that goes away by itself */
+.note {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 50%;
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 25%);
+  font-weight: 600;
+  transform: translateX(-50%);
+  animation: note-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.log-entry.is-sent {
+  opacity: 0.72;
+}
+
+.log-text {
+  font-family: var(--font-card);
+  font-size: 20px;
+  line-height: 1.3;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.panel .log-text {
+  color: var(--text);
+}
+
+.log-when {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.log-entry .badges {
+  align-items: center;
+  width: 100%;
+}
+
+/* The streak celebration uses the same notice as a leech, in a happier colour */
+.toast.is-celebration {
+  border-left-color: var(--flame);
+  background: color-mix(in srgb, var(--flame) 16%, var(--surface));
+  font-weight: 600;
+}
+
 /* ---------- Movement ---------- */
 
 @keyframes page-in {
@@ -1475,6 +1998,32 @@ mark.is-extra {
   from {
     opacity: 0;
     transform: translateY(14px);
+  }
+}
+
+@keyframes grow-up {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes grow-across {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+
+@keyframes note-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -16px);
   }
 }
 

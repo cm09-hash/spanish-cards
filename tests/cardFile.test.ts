@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import sampleFile from '../public/sample-cards.json';
-import { checkCard, checkSprint, FileProblem, parseCardFile, planImport } from '../src/data/cardFile';
+import {
+  applyRewrite,
+  checkCard,
+  checkSprint,
+  contentOf,
+  FileProblem,
+  parseCardFile,
+  planImport,
+} from '../src/data/cardFile';
+import { makeCard, makeProduction } from './helpers';
 import type { CardContent } from '../src/types';
 
 const good = { id: 'v1', type: 'vocab', front: 'el perro', back: 'the dog', tags: ['animals'], note: 'a note' };
@@ -217,7 +226,7 @@ describe('planImport', () => {
 
   it('skips cards with the same type and front, ignoring capitals and spacing', () => {
     const plan = planImport([card('new-id', '  El  Perro ')], [card('old-id', 'el perro')]);
-    expect(plan).toEqual({ toAdd: [], duplicates: 1 });
+    expect(plan).toEqual({ toAdd: [], toUpdate: [], duplicates: 1, problems: [] });
   });
 
   it('allows the same front on a different type of card', () => {
@@ -228,5 +237,140 @@ describe('planImport', () => {
     const plan = planImport([card('a', 'uno'), card('a', 'dos'), card('c', 'uno')], []);
     expect(plan.toAdd.map((c) => c.id)).toEqual(['a']);
     expect(plan.duplicates).toBe(2);
+  });
+});
+
+describe('rewrites: an import file updating cards that are already in the app', () => {
+  const flag = { reason: 'translation seems wrong', flaggedAt: '2026-11-01T10:00:00.000Z', by: 'you' as const };
+  const existing = [
+    makeCard('flagged', {}, 1, { front: 'el reto', back: 'the challange', flag }),
+    makeCard('leech', {}, 2, { front: 'por / para', back: 'for', leech: true }),
+    makeCard('fine', {}, 3, { front: 'la casa', back: 'the house' }),
+  ];
+  const rewrite = (id: string, front: string, back: string) => ({ id, type: 'vocab' as const, front, back, tags: [] });
+
+  it('updates a card that is flagged for Claude', () => {
+    const plan = planImport([rewrite('flagged', 'el reto', 'the challenge')], existing);
+    expect(plan.toUpdate.map((card) => card.id)).toEqual(['flagged']);
+    expect(plan).toMatchObject({ toAdd: [], duplicates: 0, problems: [] });
+  });
+
+  it('updates a leech', () => {
+    const plan = planImport([rewrite('leech', 'para', 'for (a purpose or a deadline)')], existing);
+    expect(plan.toUpdate.map((card) => card.id)).toEqual(['leech']);
+  });
+
+  it('never changes a card that was not flagged, so importing an old file again is safe', () => {
+    const plan = planImport([rewrite('fine', 'la casa', 'something completely different')], existing);
+    expect(plan).toEqual({ toAdd: [], toUpdate: [], duplicates: 1, problems: [] });
+  });
+
+  it('skips a flagged card whose text has not actually changed (it stays flagged)', () => {
+    const same = contentOf(existing[0]);
+    expect(planImport([same], existing)).toMatchObject({ toUpdate: [], duplicates: 1 });
+    expect(planImport([{ ...same, tags: [...same.tags].reverse() }], existing)).toMatchObject({
+      toUpdate: [],
+      duplicates: 1,
+    });
+  });
+
+  it('adds new cards and updates rewritten ones from the same file', () => {
+    const plan = planImport(
+      [
+        rewrite('flagged', 'el desafío', 'the challenge'),
+        rewrite('brand-new', 'la mesa', 'the table'),
+        rewrite('fine', 'la casa', 'the house'),
+      ],
+      existing,
+    );
+    expect(plan.toAdd.map((card) => card.id)).toEqual(['brand-new']);
+    expect(plan.toUpdate.map((card) => card.id)).toEqual(['flagged']);
+    expect(plan.duplicates).toBe(1);
+  });
+
+  it('lets a rewrite change the front, even to one another card type already uses', () => {
+    const plan = planImport([rewrite('flagged', 'la casa grande', 'the big house')], existing);
+    expect(plan.toUpdate).toHaveLength(1);
+  });
+
+  it('refuses a rewrite that changes the type of card, and says why', () => {
+    const plan = planImport(
+      [{ ...rewrite('flagged', 'El {{c1::reto}} es grande.', ''), type: 'cloze' as const }],
+      existing,
+    );
+    expect(plan.toUpdate).toEqual([]);
+    expect(plan.problems).toHaveLength(1);
+    expect(plan.problems[0]).toContain('has to keep its type');
+  });
+
+  it('treats a second copy of the same rewrite in one file as a duplicate', () => {
+    const plan = planImport(
+      [rewrite('flagged', 'el desafío', 'the challenge'), rewrite('flagged', 'otra cosa', 'x')],
+      existing,
+    );
+    expect(plan.toUpdate).toHaveLength(1);
+    expect(plan.toUpdate[0].front).toBe('el desafío');
+    expect(plan.duplicates).toBe(1);
+  });
+});
+
+describe('applyRewrite', () => {
+  const now = new Date('2026-11-20T09:00:00.000Z');
+  const studied = { state: 2, scheduleStatus: 'review', scheduledDays: 9, reps: 14, lapses: 6 } as const;
+  const current = makeCard('conj-poner', studied, 7, {
+    type: 'conjugation',
+    front: 'poner, ellos',
+    back: 'pusieron',
+    note: 'an old note',
+    verb: 'poner',
+    tense: 'pretérito',
+    person: 'ellos',
+    tags: ['madrid', 'verbs'],
+    leech: true,
+    flag: { reason: 'Leech: forgotten 6 times. Needs rewriting.', flaggedAt: '2026-11-10T10:00:00.000Z', by: 'leech' },
+    paused: true,
+    introducedAt: '2026-10-01T08:00:00.000Z',
+    production: makeProduction('conj-poner', studied),
+  });
+  const rewritten = {
+    id: 'conj-poner',
+    type: 'conjugation' as const,
+    front: 'poner → pretérito, ellos',
+    back: 'pusieron',
+    meaning: 'to put',
+    verb: 'poner',
+    tense: 'pretérito',
+    person: 'ellos',
+    tags: ['irregular'],
+  };
+  const updated = applyRewrite(current, rewritten, now);
+
+  it('replaces what the card says', () => {
+    expect(updated).toMatchObject({ front: 'poner → pretérito, ellos', back: 'pusieron', meaning: 'to put' });
+    expect(updated).not.toHaveProperty('note'); // the rewrite has no note, so the old one goes
+  });
+
+  it('keeps all of the card’s progress, in both directions', () => {
+    expect(updated.scheduling).toEqual(current.scheduling);
+    expect(updated.production).toEqual(current.production);
+    expect(updated).toMatchObject({
+      introducedAt: current.introducedAt,
+      position: 7,
+      addedAt: current.addedAt,
+      paused: true,
+      recognitionPaused: false,
+    });
+  });
+
+  it('clears the flag and the leech mark, and notes when it was edited', () => {
+    expect(updated).toMatchObject({ flag: null, leech: false, editedAt: now.toISOString() });
+  });
+
+  it('keeps the tags the card already had, so it cannot fall out of a sprint', () => {
+    expect(updated.tags).toEqual(['madrid', 'verbs', 'irregular']);
+  });
+
+  it('leaves the original untouched', () => {
+    expect(current).toMatchObject({ front: 'poner, ellos', leech: true, note: 'an old note' });
   });
 });

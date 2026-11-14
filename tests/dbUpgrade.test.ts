@@ -12,6 +12,7 @@ import { LEECH_THRESHOLD } from '../src/config';
 import type { CardFromAnyVersion } from '../src/data/cardUpgrade';
 import backupFromVersion1 from './fixtures/backup-v1.json';
 import backupFromRound1 from './fixtures/backup-v2.json';
+import backupFromRound2 from './fixtures/backup-v3.json';
 
 const TABLES = { cards: 'id', reviews: '++id, cardId, timestamp', settings: 'key' };
 
@@ -25,6 +26,100 @@ afterEach(async () => {
   const { db } = await import('../src/data/db');
   db.close();
   await Dexie.delete('spanish-cards');
+});
+
+describe('upgrading from Round 2 (database version 3)', () => {
+  /** The database as Round 2 left it, holding what a real Round 2 backup holds. */
+  async function round2Database() {
+    const old = new Dexie('spanish-cards');
+    old.version(1).stores(TABLES);
+    old.version(2).stores(TABLES);
+    old.version(3).stores({ ...TABLES, sprints: 'id' });
+    await old.table('cards').bulkAdd(structuredClone(backupFromRound2.cards));
+    await old.table('reviews').bulkAdd(structuredClone(backupFromRound2.reviews));
+    await old.table('sprints').bulkAdd(structuredClone(backupFromRound2.sprints));
+    await old
+      .table('settings')
+      .bulkPut([
+        ...Object.entries(backupFromRound2.settings).map(([key, value]) => ({ key, value })),
+        { key: 'lastBackupAt', value: '2026-11-14T16:04:00.000Z' },
+        { key: 'voiceTipSeen', value: true },
+      ]);
+    old.close();
+  }
+
+  it('leaves every card, review, sprint and setting exactly as it was', async () => {
+    await round2Database();
+    const { readEverything, getSettings } = await openWithCurrentApp();
+    const now = await readEverything();
+
+    // Not "contains": exactly equal. This upgrade adds two new tables and touches nothing else.
+    const byId = <Row extends { id?: string | number }>(rows: Row[]) =>
+      [...rows].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    expect(byId(now.cards)).toEqual(byId(backupFromRound2.cards));
+    expect(now.reviews).toEqual(backupFromRound2.reviews);
+    expect(byId(now.sprints)).toEqual(byId(backupFromRound2.sprints));
+
+    expect(await getSettings()).toMatchObject({
+      ...backupFromRound2.settings,
+      lastBackupAt: '2026-11-14T16:04:00.000Z',
+      voiceTipSeen: true,
+      // New settings start with their defaults.
+      goalKind: 'all',
+      goalReviews: 20,
+      lastReportAt: null,
+    });
+  });
+
+  it('fills in the days studied from the review history, so the streak carries straight on', async () => {
+    await round2Database();
+    const { getStudyDays } = await openWithCurrentApp();
+    const { studyDate } = await import('../src/study/dates');
+    const { computeStreak } = await import('../src/study/streak');
+
+    const expected = new Map<string, number>();
+    for (const review of backupFromRound2.reviews) {
+      const date = studyDate(new Date(review.timestamp));
+      expected.set(date, (expected.get(date) ?? 0) + 1);
+    }
+    const days = await getStudyDays();
+    expect(days).toEqual([...expected].sort().map(([date, reviews]) => ({ date, reviews })));
+    expect(days.reduce((sum, day) => sum + day.reviews, 0)).toBe(backupFromRound2.reviews.length);
+
+    // On the last day studied, the streak counts that day.
+    const lastDay = days.at(-1)!.date;
+    expect(
+      computeStreak(
+        days.map((day) => day.date),
+        lastDay,
+      ),
+    ).toMatchObject({ studiedToday: true });
+    expect(
+      computeStreak(
+        days.map((day) => day.date),
+        lastDay,
+      ).current,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it('starts with an empty capture log, and the upgraded data can be backed up and restored', async () => {
+    await round2Database();
+    const { getCaptures, readEverything, replaceEverything, getSettings } = await openWithCurrentApp();
+    const { buildBackup, parseBackup } = await import('../src/data/backupFile');
+    expect(await getCaptures()).toEqual([]);
+
+    const before = await readEverything();
+    const file = buildBackup(before, new Date());
+    expect(file.formatVersion).toBe(4);
+    await replaceEverything(parseBackup(JSON.stringify(file), await getSettings()));
+    const after = await readEverything();
+    expect(after.cards).toEqual(before.cards);
+    expect(after.studyDays).toEqual(before.studyDays);
+    expect(after.sprints).toEqual(before.sprints);
+    expect(after.reviews.map(({ id: _id, ...rest }) => rest)).toEqual(
+      before.reviews.map(({ id: _id, ...rest }) => rest),
+    );
+  });
 });
 
 describe('upgrading from Round 1 (database version 2)', () => {
@@ -159,6 +254,10 @@ describe('upgrading straight from the first release (database version 1)', () =>
       soundsOn: true,
       lastBackupAt: '2026-11-13T03:37:39.000Z',
     });
+
+    // …right through to the newest tables: study days rebuilt from the reviews, and an empty capture log.
+    expect(everything.studyDays.reduce((sum, day) => sum + day.reviews, 0)).toBe(backupFromVersion1.reviews.length);
+    expect(everything.captures).toEqual([]);
   });
 });
 
@@ -167,6 +266,14 @@ describe('a brand-new install', () => {
     const { getAllCards, getSprints, getSettings } = await openWithCurrentApp();
     expect(await getAllCards()).toEqual([]);
     expect(await getSprints()).toEqual([]);
-    expect(await getSettings()).toMatchObject({ newCardsPerDay: 15, typeAnswers: true, autoPlayAudio: true });
+    expect(await getSettings()).toMatchObject({
+      newCardsPerDay: 15,
+      typeAnswers: true,
+      autoPlayAudio: true,
+      goalKind: 'all',
+    });
+    const { getStudyDays, getCaptures } = await import('../src/data/db');
+    expect(await getStudyDays()).toEqual([]);
+    expect(await getCaptures()).toEqual([]);
   });
 });

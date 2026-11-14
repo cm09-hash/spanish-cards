@@ -31,6 +31,22 @@ export interface CardContent {
   table?: ConjugationTable;
 }
 
+/** Every field that is part of what a card says (as opposed to its progress). */
+export const CONTENT_FIELDS = [
+  'id',
+  'type',
+  'front',
+  'back',
+  'tags',
+  'note',
+  'audio',
+  'verb',
+  'meaning',
+  'tense',
+  'person',
+  'table',
+] as const satisfies readonly (keyof CardContent)[];
+
 /**
  * The two ways a card can be studied.
  *  - recognition: the card as written. For vocab and phrase cards that is Spanish → English.
@@ -162,8 +178,40 @@ export interface Sprint {
   finishedNoticeSeen: boolean;
 }
 
+/** One day on which at least one card was reviewed. The streak is worked out from these. */
+export interface StudyDay {
+  /** The study day, written like "2026-11-21". (A study day starts at 4 am.) */
+  date: string;
+  /** How many reviews were done that day. */
+  reviews: number;
+}
+
+export const CAPTURE_TYPES = ['vocab', 'phrase', 'grammar', 'conjugation', 'listening', 'other'] as const;
+export type CaptureType = (typeof CAPTURE_TYPES)[number];
+
+/** One entry in the capture log: a Spanish moment jotted down to turn into cards later. */
+export interface Capture {
+  id: string;
+  /** What came up, e.g. "how do I say to-go box?". */
+  text: string;
+  type: CaptureType;
+  /** Where or when it came up. May be empty. */
+  context: string;
+  createdAt: string;
+  /** 'waiting' until it has been handed to Claude in a weekly report. */
+  status: 'waiting' | 'sent';
+  /** When it was marked as sent (null while waiting). */
+  sentAt: string | null;
+}
+
 export interface Settings {
   newCardsPerDay: number;
+  /**
+   * The daily goal: 'all' = finish everything due plus today's new cards;
+   * 'reviews' = do `goalReviews` reviews.
+   */
+  goalKind: 'all' | 'reviews';
+  goalReviews: number;
   soundsOn: boolean;
   /** Read the Spanish aloud by itself whenever the Spanish side of a card appears. */
   autoPlayAudio: boolean;
@@ -174,4 +222,6 @@ export interface Settings {
   voiceTipSeen: boolean;
   /** When a backup file was last saved (null = never). */
   lastBackupAt: string | null;
+  /** When a weekly report for Claude was last created (null = never). */
+  lastReportAt: string | null;
 }

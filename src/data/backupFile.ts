@@ -1,30 +1,36 @@
 /**
  * Building and checking backup files. Pure logic: nothing here touches the database.
  * A backup holds everything: all cards (with their schedules), the full review
- * history, the sprints and the settings. See README.md for the format.
+ * history, the sprints, the capture log, the days studied and the settings. See README.md for the format.
  */
 import { APP_ID, BACKUP_FORMAT_VERSION, DESIRED_RETENTION, FSRS_VERSION } from '../config';
 import { schedulingId } from '../study/directions';
 import { isDate } from '../study/sprints';
-import type {
-  AnswerResult,
-  CardFlag,
-  ProductionProgress,
-  ReviewRecord,
-  SchedulingState,
-  Settings,
-  Sprint,
-  StoredCard,
+import {
+  CAPTURE_TYPES,
+  type AnswerResult,
+  type Capture,
+  type CardFlag,
+  type ProductionProgress,
+  type ReviewRecord,
+  type SchedulingState,
+  type Settings,
+  type Sprint,
+  type StoredCard,
+  type StudyDay,
 } from '../types';
 import { checkCard, FileProblem, isObject, parseJson } from './cardFile';
-import { addMissingCardFields, addMissingReviewFields, firstReviewTimes } from './cardUpgrade';
+import { addMissingCardFields, addMissingReviewFields, firstReviewTimes, studyDaysFromReviews } from './cardUpgrade';
 import type { EverythingSaved } from './db';
 
 /** Backups written by any of these versions of the file layout can be restored. */
-const READABLE_FORMAT_VERSIONS = [1, 2, 3];
+const READABLE_FORMAT_VERSIONS = [1, 2, 3, 4];
 
 /** The settings worth carrying to another phone. (Things about this device, like the last backup date, stay behind.) */
-type SettingsInBackup = Pick<Settings, 'newCardsPerDay' | 'soundsOn' | 'autoPlayAudio' | 'speechSpeed' | 'typeAnswers'>;
+type SettingsInBackup = Pick<
+  Settings,
+  'newCardsPerDay' | 'goalKind' | 'goalReviews' | 'soundsOn' | 'autoPlayAudio' | 'speechSpeed' | 'typeAnswers'
+>;
 
 export interface BackupFile {
   app: typeof APP_ID;
@@ -34,19 +40,25 @@ export interface BackupFile {
   scheduler: { algorithm: string; desiredRetention: number };
   settings: SettingsInBackup;
   sprints: Sprint[];
+  /** The capture log. */
+  captures: Capture[];
+  /** The days studied, which the streak (and its freezes) are worked out from. */
+  studyDays: StudyDay[];
   cards: StoredCard[];
   reviews: ReviewRecord[];
 }
 
 export function buildBackup(data: EverythingSaved, now: Date): BackupFile {
-  const { newCardsPerDay, soundsOn, autoPlayAudio, speechSpeed, typeAnswers } = data.settings;
+  const { newCardsPerDay, goalKind, goalReviews, soundsOn, autoPlayAudio, speechSpeed, typeAnswers } = data.settings;
   return {
     app: APP_ID,
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt: now.toISOString(),
     scheduler: { algorithm: FSRS_VERSION, desiredRetention: DESIRED_RETENTION },
-    settings: { newCardsPerDay, soundsOn, autoPlayAudio, speechSpeed, typeAnswers },
+    settings: { newCardsPerDay, goalKind, goalReviews, soundsOn, autoPlayAudio, speechSpeed, typeAnswers },
     sprints: data.sprints,
+    captures: data.captures,
+    studyDays: data.studyDays,
     cards: data.cards,
     // Written with the id first, simply because that is easier to read.
     reviews: data.reviews.map(({ id, ...rest }) => ({ id, ...rest })),
@@ -155,11 +167,32 @@ export function parseBackup(text: string, current: Settings, now = new Date()): 
     throw new FileProblem('The backup contains the same sprint more than once.');
   }
 
+  const captures = (Array.isArray(data.captures) ? data.captures : []).map((raw, index) =>
+    checkCapture(raw, `Log entry ${index + 1} in the backup`),
+  );
+  if (new Set(captures.map((capture) => capture.id)).size !== captures.length) {
+    throw new FileProblem('The backup contains the same log entry more than once.');
+  }
+
+  // Backups from before the list of study days existed: rebuild it from the review history,
+  // exactly as the database upgrade does.
+  const studyDays = Array.isArray(data.studyDays)
+    ? data.studyDays.map((raw, index) => checkStudyDay(raw, `Study day ${index + 1} in the backup`))
+    : studyDaysFromReviews(reviews);
+  if (new Set(studyDays.map((day) => day.date)).size !== studyDays.length) {
+    throw new FileProblem('The backup contains the same study day more than once.');
+  }
+
   const saved = isObject(data.settings) ? data.settings : {};
   const perDay = saved.newCardsPerDay;
   const settings: Settings = {
     ...current,
     newCardsPerDay: typeof perDay === 'number' && perDay >= 0 ? Math.floor(perDay) : current.newCardsPerDay,
+    goalKind: saved.goalKind === 'all' || saved.goalKind === 'reviews' ? saved.goalKind : current.goalKind,
+    goalReviews:
+      typeof saved.goalReviews === 'number' && saved.goalReviews >= 1
+        ? Math.floor(saved.goalReviews)
+        : current.goalReviews,
     soundsOn: typeof saved.soundsOn === 'boolean' ? saved.soundsOn : current.soundsOn,
     autoPlayAudio: typeof saved.autoPlayAudio === 'boolean' ? saved.autoPlayAudio : current.autoPlayAudio,
     speechSpeed:
@@ -168,7 +201,7 @@ export function parseBackup(text: string, current: Settings, now = new Date()): 
     lastBackupAt: typeof data.exportedAt === 'string' ? data.exportedAt : null,
   };
 
-  return { cards, reviews, sprints, settings, exportedAt: settings.lastBackupAt };
+  return { cards, reviews, sprints, captures, studyDays, settings, exportedAt: settings.lastBackupAt };
 }
 
 function checkScheduling(raw: unknown, where: string): SchedulingState {
@@ -225,6 +258,30 @@ function checkSprint(raw: unknown, where: string): Sprint {
     createdAt: checkDate(raw.createdAt, where),
     finishedNoticeSeen: raw.finishedNoticeSeen === true,
   };
+}
+
+function checkCapture(raw: unknown, where: string): Capture {
+  const damaged = new FileProblem(`${where} is damaged.`);
+  if (!isObject(raw) || typeof raw.id !== 'string' || typeof raw.text !== 'string' || !raw.text.trim()) throw damaged;
+  if (!(CAPTURE_TYPES as readonly unknown[]).includes(raw.type)) throw damaged;
+  if (raw.status !== 'waiting' && raw.status !== 'sent') throw damaged;
+  return {
+    id: raw.id,
+    text: raw.text,
+    type: raw.type as Capture['type'],
+    context: typeof raw.context === 'string' ? raw.context : '',
+    createdAt: checkDate(raw.createdAt, where),
+    status: raw.status,
+    sentAt: raw.sentAt == null ? null : checkDate(raw.sentAt, where),
+  };
+}
+
+function checkStudyDay(raw: unknown, where: string): StudyDay {
+  if (!isObject(raw) || typeof raw.date !== 'string' || !isDate(raw.date))
+    throw new FileProblem(`${where} is damaged.`);
+  const reviews = checkNumber(raw.reviews, where);
+  if (reviews < 1) throw new FileProblem(`${where} is damaged.`);
+  return { date: raw.date, reviews: Math.floor(reviews) };
 }
 
 /** For fields that older backups don't have: missing is fine, but the wrong kind of value is not. */

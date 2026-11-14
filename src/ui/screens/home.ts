@@ -3,13 +3,19 @@ import { QUICK_SESSION_MINUTES } from '../../config';
 import { backupReminder } from '../../data/backupReminder';
 import { countReviews, saveSprint, updateSettings } from '../../data/db';
 import { onUpdateReady } from '../../pwa';
-import { summarize } from '../../study/queue';
+import { asLocalDate } from '../../study/dates';
+import { goalProgress } from '../../study/goal';
+import { summarize, todaysProgress } from '../../study/queue';
 import { daysLeftText, hasAnyTag, isActive } from '../../study/sprints';
+import { daysText, type Streak } from '../../study/streak';
 import { formatClockTime } from '../../study/time';
 import { loadToday } from '../../study/today';
 import type { Sprint, StoredCard } from '../../types';
 import { navigate, type Cleanup } from '../app';
+import { CAPTURES_CHANGED, countWaitingCaptures } from '../capture';
+import { ring } from '../charts';
 import { count, h, setChildren } from '../dom';
+import { icon } from '../icons';
 import { onVoicesChanged, VOICE_TIP, voiceStatus } from '../speech';
 import { updateBanner } from '../updateBanner';
 
@@ -18,7 +24,11 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
 
   async function draw(): Promise<void> {
     const now = new Date();
-    const [today, reviewsEver] = await Promise.all([loadToday(now), countReviews()]);
+    const [today, reviewsEver, waitingInLog] = await Promise.all([
+      loadToday(now),
+      countReviews(),
+      countWaitingCaptures(),
+    ]);
     const summary = summarize(today.cards, today.queueOptions);
     const reviewsOnly = summarize(today.cards, { ...today.queueOptions, reviewsOnly: true });
 
@@ -95,6 +105,11 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
         { class: 'button small quiet', href: '#/sprints' },
         running.length > 0 ? 'All sprints ›' : 'Topic sprints ›',
       ),
+      h(
+        'a',
+        { class: 'button small quiet', href: '#/log' },
+        waitingInLog > 0 ? `Capture log (${waitingInLog} waiting) ›` : 'Capture log ›',
+      ),
     );
 
     if (summary.totalCards === 0) {
@@ -131,6 +146,14 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
       backupBanner,
       finishedNotices,
       voiceTip,
+      todayPanel(
+        today.streak,
+        goalProgress(
+          today.settings,
+          todaysProgress(today.cards, today.queueOptions, today.reviewedTodayKeys),
+          today.reviewsToday,
+        ),
+      ),
       h(
         'section',
         { class: 'stats' },
@@ -172,6 +195,8 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
   document.addEventListener('visibilitychange', onVisible);
   const stopListening = onUpdateReady(() => void draw());
   const stopWatchingVoices = onVoicesChanged(() => void draw());
+  const onLogChange = () => void draw();
+  window.addEventListener(CAPTURES_CHANGED, onLogChange);
 
   await draw();
 
@@ -180,7 +205,49 @@ export async function renderHome(root: HTMLElement): Promise<Cleanup> {
     document.removeEventListener('visibilitychange', onVisible);
     stopListening();
     stopWatchingVoices();
+    window.removeEventListener(CAPTURES_CHANGED, onLogChange);
   };
+}
+
+/** The streak, and a ring showing how far along today's goal is. Tapping it opens Stats. */
+function todayPanel(streak: Streak, goal: ReturnType<typeof goalProgress>): HTMLElement {
+  const day = (date: string) =>
+    asLocalDate(date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+  let streakText = 'No streak yet. Study today to start one.';
+  if (streak.current > 0) {
+    streakText = `${daysText(streak.current)} in a row`;
+    if (!streak.studiedToday) streakText += ' · study today to keep it';
+  }
+
+  // The freeze: one missed day is forgiven, once every 7 days.
+  let freezeText = '';
+  const lastFreeze = streak.freezesUsed.at(-1);
+  if (streak.current > 0) {
+    if (streak.nextFreezeOn && lastFreeze) {
+      freezeText = `Streak freeze used ${day(lastFreeze)} · next one from ${day(streak.nextFreezeOn)}`;
+    } else {
+      freezeText = 'Streak freeze ready: one missed day is forgiven';
+    }
+  }
+
+  return h(
+    'a',
+    { class: 'today-panel', href: '#/stats' },
+    ring(goal.fraction, goal.met ? '✓' : `${Math.round(goal.fraction * 100)}%`, `Today’s goal: ${goal.label}`),
+    h(
+      'div',
+      { class: 'today-text' },
+      h(
+        'div',
+        { class: `streak-line with-flame ${streak.current > 0 && streak.studiedToday ? 'is-lit' : ''}` },
+        icon('flame'),
+        h('span', null, streakText),
+      ),
+      h('div', { class: 'goal-line' }, goal.label),
+      freezeText && h('div', { class: 'freeze-line' }, freezeText),
+    ),
+  );
 }
 
 function statTile(value: number, label: string): HTMLElement {

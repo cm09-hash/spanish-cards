@@ -2,6 +2,7 @@
  * The app frame: decides which screen to show (from the "#/…" part of the address)
  * and draws the tab bar at the bottom.
  */
+import { captureButton } from './capture';
 import { h, setChildren } from './dom';
 import { icon, type IconName } from './icons';
 import { renderBackup } from './screens/backup';
@@ -9,9 +10,11 @@ import { renderCardDetail } from './screens/cardDetail';
 import { renderCards } from './screens/cards';
 import { renderHome } from './screens/home';
 import { renderImport } from './screens/import';
+import { renderLog } from './screens/log';
 import { renderReview } from './screens/review';
 import { renderSettings } from './screens/settings';
 import { renderSprints } from './screens/sprints';
+import { renderStats } from './screens/stats';
 
 /** A screen draws itself into `root`. It may return a function that tidies up when the screen is left. */
 export type Cleanup = () => void;
@@ -30,6 +33,8 @@ interface Screen {
 const SCREENS: Record<string, Screen> = {
   home: { render: renderHome, style: 'home' },
   sprints: { render: renderSprints, style: 'sprints', tab: 'home' },
+  log: { render: renderLog, style: 'log', tab: 'home' },
+  stats: { render: renderStats, style: 'stats' },
   review: { render: (root) => renderReview(root, 'normal'), style: 'review', fullHeight: true },
   quick: { render: (root) => renderReview(root, 'quick'), style: 'review', fullHeight: true },
   cards: { render: (root, id) => (id ? renderCardDetail(root, id) : renderCards(root)), style: 'cards' },
@@ -41,6 +46,7 @@ const SCREENS: Record<string, Screen> = {
 const TABS: { route: string; label: string; icon: IconName }[] = [
   { route: 'home', label: 'Home', icon: 'home' },
   { route: 'cards', label: 'Cards', icon: 'cards' },
+  { route: 'stats', label: 'Stats', icon: 'stats' },
   { route: 'import', label: 'Import', icon: 'import' },
   { route: 'backup', label: 'Backup', icon: 'backup' },
   { route: 'settings', label: 'Settings', icon: 'settings' },
@@ -72,7 +78,9 @@ export function startApp(container: HTMLElement): void {
       h('a', { href: `#/${tab.route}`, class: 'tab', 'data-route': tab.route }, icon(tab.icon), tab.label),
     ),
   );
-  container.replaceChildren(screenRoot, tabBar);
+  // The floating "+" for the capture log sits above the tab bar on every screen.
+  // (Full-height screens hide it; the Review screen has its own "+" at the top instead.)
+  container.replaceChildren(screenRoot, captureButton(), tabBar);
 
   let cleanup: Cleanup | void;
   let visit = 0;

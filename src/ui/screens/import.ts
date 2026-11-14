@@ -50,9 +50,18 @@ export async function renderImport(root: HTMLElement): Promise<void> {
     }
   }
 
-  function showResult({ added, duplicates, problems, sprint }: ImportResult): void {
+  function showResult({ added, updated, duplicates, problems, sprint }: ImportResult): void {
     const lines: HTMLElement[] = [];
     if (added > 0) lines.push(h('p', { class: 'message is-success' }, `Added ${count(added, 'new card')}.`));
+    if (updated > 0) {
+      lines.push(
+        h(
+          'p',
+          { class: 'message is-success' },
+          `Updated ${count(updated, 'card')} that you had flagged or kept forgetting. ${updated === 1 ? 'It keeps its' : 'They keep their'} progress, and ${updated === 1 ? 'its flag is' : 'their flags are'} cleared.`,
+        ),
+      );
+    }
     if (sprint) {
       const ends = formatDate(new Date(`${sprint.endDate}T12:00:00`));
       const over = sprint.endDate < studyDate(new Date());
@@ -106,7 +115,7 @@ export async function renderImport(root: HTMLElement): Promise<void> {
     h(
       'p',
       null,
-      'Choose a JSON file of cards from your phone. Cards you already have are skipped, so importing the same file twice is safe.',
+      'Choose a JSON file of cards from your phone. Cards you already have are skipped, so importing the same file twice is safe. The one exception: rewritten versions of cards you flagged for Claude (or kept forgetting) replace the old text and keep their progress.',
     ),
     filePickerButton('Choose a file', 'primary big', (text) => void runImport(() => text)),
     result,
