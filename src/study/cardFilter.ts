@@ -2,15 +2,17 @@
  * Searching and filtering for the card browser.
  * Pure logic: it only looks at the cards it is given.
  */
-import type { CardType, StoredCard } from '../types';
-import { parseCloze } from './cloze';
+import type { CardType, SchedulingState, StoredCard } from '../types';
+import { itemsOf } from './directions';
+import { simplify } from './text';
+import { clozeSentence } from './voices';
 
-/** Where a card is in its life. (FSRS's "relearning" is shown as learning.) */
+/** Where a card (in one direction) is in its life. (FSRS's "relearning" is shown as learning.) */
 export type Stage = 'new' | 'learning' | 'review';
 
-export function stageOf(card: StoredCard): Stage {
-  if (card.scheduling.state === 0) return 'new';
-  return card.scheduling.state === 2 ? 'review' : 'learning';
+export function stageOf(scheduling: SchedulingState): Stage {
+  if (scheduling.state === 0) return 'new';
+  return scheduling.state === 2 ? 'review' : 'learning';
 }
 
 export const STATUS_FILTERS = ['new', 'learning', 'review', 'paused', 'flagged', 'leech'] as const;
@@ -42,30 +44,18 @@ export function filterCards(cards: StoredCard[], filter: CardFilter): StoredCard
     .sort((a, b) => a.position - b.position);
 }
 
+/** A card with two directions matches if either direction does. */
 function hasStatus(card: StoredCard, status: StatusFilter): boolean {
   switch (status) {
     case 'paused':
-      return card.paused;
+      return itemsOf(card).some((item) => item.paused);
     case 'flagged':
       return card.flag !== null;
     case 'leech':
       return card.leech;
     default:
-      return stageOf(card) === status;
+      return itemsOf(card).some((item) => stageOf(item.scheduling) === status);
   }
-}
-
-/**
- * Makes text easy to match: lower case, accents removed, extra spaces removed.
- * So typing "desafio" finds "el desafío".
- */
-export function simplify(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 /** Every tag in use, in alphabetical order. */
@@ -75,10 +65,7 @@ export function allTags(cards: StoredCard[]): string[] {
 
 /** A card's front as one line of plain text, with cloze blanks filled in: "Ayer fui al mercado." */
 export function frontAsText(card: StoredCard): string {
-  if (card.type !== 'cloze') return card.front;
-  return parseCloze(card.front)
-    .map((part) => (part.kind === 'text' ? part.text : part.answer))
-    .join('');
+  return card.type === 'cloze' ? clozeSentence(card.front) : card.front;
 }
 
 /** Turns "verbs, past tense , verbs" from the edit form into ["verbs", "past tense"]. */

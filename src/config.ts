@@ -36,6 +36,21 @@ export const QUICK_SESSION_MINUTES = 5;
 /** Home shows a reminder when the last backup is older than this many days. */
 export const BACKUP_REMINDER_DAYS = 7;
 
+/**
+ * Vocab and phrase cards are studied in two directions. The second one
+ * (English → Spanish) is only introduced this many days after the first.
+ */
+export const PRODUCTION_DELAY_DAYS = 3;
+
+/**
+ * During a topic sprint, sprint cards are introduced first, but at least this share
+ * of each day's new cards (0.4 = 40%) still comes from the normal, non-sprint cards.
+ */
+export const SPRINT_NORMAL_SHARE = 0.4;
+
+/** Speech speed for the "slow" setting (1 = the voice's normal speed). */
+export const SLOW_SPEECH_RATE = 0.7;
+
 /** Written into backup files so the app can recognise its own backups. */
 export const APP_ID = 'spanish-cards';
 
@@ -44,5 +59,7 @@ export const APP_ID = 'spanish-cards';
  * Older versions can still be restored (see src/data/backupFile.ts).
  *   1 = the first version
  *   2 = cards gained "paused", "leech", "flag" and "editedAt"; settings gained "soundsOn"
+ *   3 = cards gained a second direction ("production"), "introducedAt" and "recognitionPaused";
+ *       reviews gained "direction" and the typed answer; sprints were added; more settings
  */
-export const BACKUP_FORMAT_VERSION = 2;
+export const BACKUP_FORMAT_VERSION = 3;

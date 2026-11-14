@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { allTags, filterCards, frontAsText, NO_FILTER, parseTags, stageOf } from '../src/study/cardFilter';
 import type { StoredCard } from '../src/types';
-import { makeCard } from './helpers';
+import { makeCard, makeProduction } from './helpers';
 
 const cards: StoredCard[] = [
   makeCard('challenge', {}, 2, { front: 'el desafío', back: 'the challenge', tags: ['nouns'] }),
@@ -71,9 +71,27 @@ describe('filterCards', () => {
   });
 });
 
+describe('filtering cards that have two directions', () => {
+  const studied = { state: 2, scheduleStatus: 'review' } as const;
+  const twoWay = [
+    makeCard('half', studied, 1, { production: makeProduction('half') }), // Spanish → English learned, the other side new
+    makeCard('whole', studied, 2, { production: makeProduction('whole', studied) }),
+    makeCard('one-side-paused', studied, 3, { production: makeProduction('one-side-paused', studied, true) }),
+  ];
+
+  it('matches a stage if either direction is at that stage', () => {
+    expect(ids(filterCards(twoWay, { ...NO_FILTER, status: 'new' }))).toEqual(['half']);
+    expect(ids(filterCards(twoWay, { ...NO_FILTER, status: 'review' }))).toEqual(['half', 'whole', 'one-side-paused']);
+  });
+
+  it('finds cards with just one direction paused', () => {
+    expect(ids(filterCards(twoWay, { ...NO_FILTER, status: 'paused' }))).toEqual(['one-side-paused']);
+  });
+});
+
 describe('card browser helpers', () => {
   it('treats relearning as learning', () => {
-    expect(cards.map(stageOf)).toEqual(['new', 'review', 'learning', 'learning']);
+    expect(cards.map((card) => stageOf(card.scheduling))).toEqual(['new', 'review', 'learning', 'learning']);
   });
 
   it('lists every tag once, alphabetically', () => {

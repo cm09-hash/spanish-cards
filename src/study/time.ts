@@ -39,7 +39,7 @@ function oneDecimal(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-/** "10:14 pm", or "tomorrow at 9:05 am" / "Mon 3 at 9:05 am" when it isn't today. */
+/** "10:14 pm", or "tomorrow at 9:05 am" / "Monday at 9:05 am" when it isn't today. */
 export function formatClockTime(when: Date, now: Date): string {
   const time = when.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   if (when.toDateString() === now.toDateString()) return time;
@@ -48,7 +48,7 @@ export function formatClockTime(when: Date, now: Date): string {
   tomorrow.setDate(tomorrow.getDate() + 1);
   if (when.toDateString() === tomorrow.toDateString()) return `tomorrow at ${time}`;
 
-  const day = when.toLocaleDateString([], { weekday: 'short', day: 'numeric' });
+  const day = when.toLocaleDateString([], { weekday: 'long' });
   return `${day} at ${time}`;
 }
 

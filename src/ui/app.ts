@@ -11,6 +11,7 @@ import { renderHome } from './screens/home';
 import { renderImport } from './screens/import';
 import { renderReview } from './screens/review';
 import { renderSettings } from './screens/settings';
+import { renderSprints } from './screens/sprints';
 
 /** A screen draws itself into `root`. It may return a function that tidies up when the screen is left. */
 export type Cleanup = () => void;
@@ -22,10 +23,13 @@ interface Screen {
   style: string;
   /** Full-height screens hide the tab bar so nothing distracts from the card. */
   fullHeight?: boolean;
+  /** Which tab to light up, for screens that have no tab of their own. */
+  tab?: string;
 }
 
 const SCREENS: Record<string, Screen> = {
   home: { render: renderHome, style: 'home' },
+  sprints: { render: renderSprints, style: 'sprints', tab: 'home' },
   review: { render: (root) => renderReview(root, 'normal'), style: 'review', fullHeight: true },
   quick: { render: (root) => renderReview(root, 'quick'), style: 'review', fullHeight: true },
   cards: { render: (root, id) => (id ? renderCardDetail(root, id) : renderCards(root)), style: 'cards' },
@@ -83,7 +87,7 @@ export function startApp(container: HTMLElement): void {
 
     container.classList.toggle('is-full-height', screen.fullHeight === true);
     for (const tab of tabBar.querySelectorAll<HTMLElement>('.tab')) {
-      if (tab.dataset.route === route.name) tab.setAttribute('aria-current', 'page');
+      if (tab.dataset.route === (screen.tab ?? route.name)) tab.setAttribute('aria-current', 'page');
       else tab.removeAttribute('aria-current');
     }
 

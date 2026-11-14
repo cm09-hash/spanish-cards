@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { blankSchedulingState } from '../src/study/directions';
 import { initScheduler, newSchedulingState, previewRatings } from '../src/study/scheduler';
 
 beforeAll(() => initScheduler());
@@ -14,6 +15,17 @@ describe('scheduler (ts-fsrs)', () => {
       reps: 0,
       lastReviewAt: null,
     });
+  });
+
+  it('agrees with the hand-written blank state used when upgrading the database', () => {
+    expect(blankSchedulingState('abc', now)).toEqual(newSchedulingState('abc', now));
+    expect(Object.keys(blankSchedulingState('abc', now))).toEqual(Object.keys(newSchedulingState('abc', now)));
+  });
+
+  it('accepts that blank state, and the production id, as a card to schedule', () => {
+    const outcomes = previewRatings(blankSchedulingState('abc#production', now), now);
+    expect(outcomes).toHaveLength(4);
+    expect(outcomes[2].after).toMatchObject({ cardId: 'abc#production', reps: 1 });
   });
 
   it('previews all four ratings, each coming back later than the one before', () => {
